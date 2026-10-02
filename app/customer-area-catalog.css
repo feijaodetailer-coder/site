@@ -1,0 +1,54 @@
+.customer-area-catalog{--service-heading:#17191a;--service-accent:#d72831;max-width:1180px;min-height:calc(100vh - 1px);padding:30px clamp(18px,4vw,54px) 48px;background:radial-gradient(ellipse at 88% 0%,#241719 0,transparent 34rem),#0d0e0f;color:#f3f3f1}
+.customer-area-catalog .services-eyebrow{color:#e29b9f}
+.customer-area-catalog .services-heading h1,.customer-area-catalog .services-category h2,.customer-area-catalog .package-heading h2,.customer-area-catalog .catalog-plan-intro h2{color:#f3f3f1}
+.customer-area-catalog .services-heading>div>p:last-child,.customer-area-catalog .services-category header p,.customer-area-catalog .package-heading p,.customer-area-catalog .services-catalog-heading p{color:#aeb0b0}
+.customer-area-catalog .services-tab-list{border-color:#343738}
+.customer-area-catalog .services-tab-list [role=tab]{color:#b7b9b9}
+.customer-area-catalog .services-tab-list [role=tab][data-state=active]{color:#f1c4c6;box-shadow:inset 0 -3px #d72831!important}
+.customer-area-catalog .selection-count{background:#442326;color:#ffc4c6}
+.customer-area-catalog .service-featured{border-color:#343738;background:linear-gradient(145deg,#17191a,#121415)}
+.customer-area-catalog .service-featured-heading h2,.customer-area-catalog .services-catalog-heading h2{color:#f3f3f1}
+.customer-area-catalog .service-featured-heading p{color:#aeb0b0}
+.customer-area-catalog .service-featured-count,.customer-area-catalog .service-featured-card{border-color:#383b3c;background:#1a1c1d;color:#f1f1ef}
+.customer-area-catalog .service-featured-number{background:#402225;color:#ffc4c6}
+.customer-area-catalog .service-featured-copy small{color:#b1b3b3}
+.customer-area-catalog .service-featured-link{color:#f2bfc1}
+.customer-area-catalog .service-featured-actions button{border-color:#494b4c;background:#191b1c;color:#f1eeee}
+.customer-area-catalog .service-featured-actions .service-build-package{border-color:#8f292f;background:#b92028;color:#fff}
+.customer-area-catalog .services-search{border-color:#454849;background:#17191a;color:#ddd}
+.customer-area-catalog .services-search input{color:#f3f3f1}
+.customer-area-catalog .services-search input::placeholder{color:#959999}
+.customer-area-catalog .clean-service-card,.customer-area-catalog .package-option,.customer-area-catalog .package-summary{border-color:#373a3b;background:#17191a;color:#f0f0ee}
+.customer-area-catalog .clean-service-card h3,.customer-area-catalog .package-category>h3{background:#222526;color:#fff}
+.customer-area-catalog .clean-service-card p,.customer-area-catalog .service-includes,.customer-area-catalog .package-note,.customer-area-catalog .package-summary>p{color:#b7b9b9}
+.customer-area-catalog .clean-service-card .service-duration{border-color:#3a3c3d;color:#b9bbbb}
+.customer-area-catalog .package-option.is-selected{border-color:#a94045;background:#25191a}
+.customer-area-catalog .package-summary small{color:#aeb0b0}
+.customer-area-catalog .clear-package,.customer-area-catalog .package-spec-link{color:#efb7ba}
+.customer-area-catalog .services-footer{border-color:#333637;color:#aeb0b0}
+.customer-area-catalog .services-footer a{color:#ddd}
+.customer-area-catalog .catalog-plan-intro{margin:8px 0 18px}
+.customer-area-catalog .catalog-plan-intro h2{margin:0 0 5px;font-size:22px}
+.customer-area-catalog .catalog-plan-intro p{margin:0;color:#b2b4b4;font-size:15px}
+.customer-area-catalog .customer-site-embedded{background:transparent!important;color:#f3f3f1!important;min-height:0}
+.customer-area-catalog .customer-site-embedded .customer-section-heading{margin:18px 0 16px}
+.customer-area-catalog .customer-site-embedded .customer-section-heading h2{color:#f3f3f1;font-size:21px}
+.customer-area-catalog .customer-site-embedded .customer-section-heading p{color:#b2b4b4;font-size:14px}
+.customer-area-catalog .customer-site-embedded .plans-steps{margin-bottom:16px}
+.customer-area-catalog .customer-site-embedded .plan-card{overflow:hidden;border-color:#383b3c;background:#17191a;color:#f1f1ef;box-shadow:none}
+.customer-area-catalog .customer-site-embedded .plan-card img{display:none}
+.customer-area-catalog .customer-site-embedded .plan-body{padding:21px}
+.customer-area-catalog .customer-site-embedded .plan-body h3,.customer-area-catalog .customer-site-embedded .plan-body p{color:#efefed}
+.customer-area-catalog .customer-site-embedded .plan-body p{font-size:15px}
+.customer-area-catalog .customer-site-embedded .plan-conditions{color:#d0d1d1}
+.customer-area-catalog .customer-site-embedded .plan-conditions div{border-color:#393c3d}
+.customer-area-catalog .customer-site-embedded .plan-conditions dt{color:#aeb0b0}
+.customer-area-catalog .customer-site-embedded .plan-price{border-color:#383b3c;color:#f4f4f2}
+.customer-area-catalog .customer-site-embedded .plan-price strong{color:#fff}
+.customer-area-catalog .customer-site-embedded .plan-body button{background:#bd242b;color:#fff}
+.customer-area-catalog .customer-site-embedded .plan-body button:hover{background:#d22a32}
+.customer-area-catalog .customer-site-embedded .customer-state{color:#d3d5d5}
+.customer-area-catalog .customer-site-embedded .customer-state.error{color:#ffc6c8}
+.customer-area-catalog .customer-site-embedded .plan-grid{gap:13px}
+@media(max-width:600px){.customer-area-catalog{padding:22px 17px 35px}.customer-area-catalog .customer-site-embedded .plan-body{padding:17px}.customer-area-catalog .service-featured-actions{grid-template-columns:1fr}}
+

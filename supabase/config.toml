@@ -1,0 +1,6 @@
+# Configuração mínima para o Supabase CLI (supabase link / supabase db push / supabase functions deploy).
+project_id = "feijao-detailer"
+
+[functions.api]
+# O site público (catálogo e agendamento) chama a função sem login; a função valida o token quando existe.
+verify_jwt = false
