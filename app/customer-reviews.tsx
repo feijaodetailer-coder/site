@@ -42,7 +42,7 @@ export default function CustomerReviews() {
       const service = data?.services.find(candidate => candidate.name === item?.name);
       if (!service) return [];
       const id = `review:${order.id}:${service.id}`;
-      return published.has(id) ? [] : [{ id, orderId: order.id, serviceId: service.id, serviceName: service.name, completedAt: order.data.completedDate || order.updated_at }];
+      return published.has(id) ? [] : [{ id, orderId: order.id, serviceId: service.id, serviceName: service.name, completedAt: order.data.completedDate || order.created_at }];
     });
   }).filter((item, index, all) => all.findIndex(candidate => candidate.id === item.id) === index), [completedOrders, data, published]);
 
