@@ -3,12 +3,13 @@ import { withBase } from "@/lib/base";
 import { apiFetch } from "@/lib/api";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ArrowUpRight, CalendarDays, Check, CircleCheck, Clock3, MessageCircle, Plus, Search, X, CircleDollarSign } from "lucide-react";
+import { ChevronDown, ArrowUpRight, CalendarDays, Check, CircleCheck, Clock3, MessageCircle, Plus, Search, X, CircleDollarSign, Star } from "lucide-react";
 import SiteShell from "./site-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import "./services.css";
+import "./service-reviews.css";
 import "./customer-area-catalog.css";
 import { serviceDetails } from "./service-details";
 import CustomerPage from "./customer";
@@ -31,6 +32,7 @@ const serviceImage = (name: string) => {
   return withBase(`/service-images/${image}`);};
 const fallbackFeatured = ["Vitrificação de pintura", "Polimento técnico", "Lavagem detalhada interna e externa"];
 type PricedService={id:number;name:string;category:string;price:number;duration:number};
+type PublicReview={id:string;serviceName:string;rating:number;comment:string;customerName:string;createdAt:string};
 const packageBase=(name:string)=>name.replace(" · Popular","").replace(" · SUV","").replace(" · Caminhonete","").replace(" · 5 lugares","").replace(" · 7 lugares","");
 const variantLabel=(name:string)=>name.match(/ · (Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u)?.[1]||"Valor inicial";
 const brl=(value:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(value/100);
@@ -68,6 +70,7 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   const activeView = view === "agendar" && serviceBookingOpen ? "agendar" : visibleTabs.some(tab => tab.id === view) ? view : visibleTabs[0]?.id ?? "";
   const tabVisible = (id: string) => visibleTabs.some(tab => tab.id === id);
   const [popular, setPopular] = useState<Array<{ service_name: string; clicks: number }>>([]);
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [catalogServices,setCatalogServices]=useState<PricedService[]>([]);
   const motorcycleServices = [...new Set(catalogServices.filter(service => /moto/i.test(service.name) || /moto/i.test(service.category)).map(service => service.name))];
   const visibleCategories = vehicleType === "moto"
@@ -80,8 +83,8 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   const toggle = (name: string) => setSelected(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
   useEffect(() => {
     let active = true;
-    apiFetch("/api/public", { cache: "no-store" }).then(response => response.ok ? response.json() as Promise<{ popular?: Array<{ service_name: string; clicks: number }>; services?:PricedService[]; settings?:SiteDisplay }> : null)
-      .then(data => { if (active && Array.isArray(data?.popular)) setPopular(data.popular);if(active&&Array.isArray(data?.services))setCatalogServices(data.services); if(active){if(data?.settings)setSiteSettings(data.settings);else setCatalogError(true);} }).catch(() => {if(active)setCatalogError(true);});
+    apiFetch("/api/public", { cache: "no-store" }).then(response => response.ok ? response.json() as Promise<{ popular?: Array<{ service_name: string; clicks: number }>; reviews?:PublicReview[]; services?:PricedService[]; settings?:SiteDisplay }> : null)
+      .then(data => { if (active && Array.isArray(data?.popular)) setPopular(data.popular);if(active&&Array.isArray(data?.reviews))setReviews(data.reviews);if(active&&Array.isArray(data?.services))setCatalogServices(data.services); if(active){if(data?.settings)setSiteSettings(data.settings);else setCatalogError(true);} }).catch(() => {if(active)setCatalogError(true);});
     return () => { active = false; };
   }, []);
   const featured = vehicleType === "moto" ? motorcycleServices.slice(0, 3) : fallbackFeatured.filter(name => allServices.includes(name));
@@ -123,6 +126,7 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
           <div className="service-featured-grid">{featured.map((name, index) => <button className="service-featured-card" key={name} onClick={() => openService(name)}><span className="designer-service-image"><img src={serviceImage(name)} alt="" loading="lazy"/><span className="service-featured-number">0{index + 1}</span></span><span className="service-featured-copy"><strong>{name}</strong><small><Clock3 size={14}/>{serviceDetails[name]?.duration ? `Estimativa · ${serviceDetails[name].duration}` : "Tempo sob avaliação"}</small></span><span className="service-featured-link">Conhecer serviço <ArrowUpRight size={16}/></span></button>)}</div>
         </section>
         <div className="service-featured-actions">{tabVisible("todos") && <button onClick={() => setView("todos")}>Mais serviços <ArrowUpRight size={16}/></button>}{tabVisible("pacote") && <button className="service-build-package" onClick={() => setView("pacote")}><Plus size={17}/> Monte seu pacote</button>}{tabVisible("agendar") && <button className="service-online-booking" onClick={() => setView("agendar")}><CalendarDays size={17}/> Agendar horário</button>}</div>
+        <section className="service-reviews" aria-labelledby="service-reviews-title"><div className="service-reviews-heading"><div><p className="services-eyebrow">EXPERIÊNCIAS REAIS</p><h2 id="service-reviews-title">Avaliações de quem já cuidou do veículo</h2><p>Clientes avaliam os serviços realizados diretamente na área do cliente.</p></div>{reviews.length>0&&<span className="service-reviews-average"><Star size={17} fill="currentColor"/><strong>{(reviews.reduce((sum,review)=>sum+review.rating,0)/reviews.length).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})}</strong><small>{reviews.length} avaliação{reviews.length===1?"":"ões"}</small></span>}</div>{reviews.length?<div className="service-reviews-grid">{reviews.slice(0,6).map(review=><article className="service-review-card" key={review.id}><div className="service-review-stars" aria-label={`${review.rating} de 5 estrelas`}>{[1,2,3,4,5].map(star=><Star key={star} size={15} fill={star<=review.rating?"currentColor":"none"}/>)}</div><h3>{review.serviceName}</h3>{review.comment&&<p>“{review.comment}”</p>}<footer><strong>{review.customerName}</strong><span>{new Intl.DateTimeFormat("pt-BR",{dateStyle:"medium"}).format(new Date(review.createdAt))}</span></footer></article>)}</div>:<p className="service-reviews-empty">As avaliações dos clientes aparecerão aqui após a conclusão do primeiro serviço avaliado.</p>}</section>
       </TabsContent>
       <TabsContent value="todos">
         <div className="services-catalog-heading"><div><h2>Todos os serviços</h2><p>Clique em uma categoria para ver os serviços.</p></div><label className="services-search"><Search size={18}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar serviço" aria-label="Buscar serviço"/></label></div>
