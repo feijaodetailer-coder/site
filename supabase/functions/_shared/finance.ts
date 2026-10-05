@@ -1,10 +1,11 @@
-export const expenseCategories = ['Produtos e insumos','Contas fixas','Manutenção e reforma','Alimentação','Equipamentos','Marketing','Transporte','Outras despesas'];
+export const expenseCategories = ['Produtos e insumos','Contas fixas','Água','Luz','Telefone e internet','Gastos gerais','Manutenção e reforma','Alimentação','Equipamentos','Marketing','Transporte','Outras despesas'];
 export const paymentMethods = ['Pix','Dinheiro','Cartão de crédito','Cartão de débito','Transferência','Boleto','Outro','Não informado'];
 export type Kind = 'entrada'|'saida';
 export type ProductPurchase={classification:string;name:string;brand:string;size:string;unit:string;startedOn:string;finishedOn:string;services:number|null};
+export type ToolPurchase={brand:string;quantity:string;warrantyUntil:string};
 export const productClassifications=["Ácido","Alcalino","Shampoo","APC","Cera","Desengraxante","Selante","Polidor","Outro"];
 export function productDays(p:ProductPurchase){return p.startedOn?Math.round((Date.parse((p.finishedOn||brazilToday())+"T12:00:00Z")-Date.parse(p.startedOn+"T12:00:00Z"))/86400000):null;}
-export type Tx = {product:ProductPurchase|null;id:number;date:string;kind:Kind;category:string;subcategory:string;description:string;amount:number;booking_id:number|null;record_id:string|null;payment_method:string;financial_status:string;notes:string;is_stock_purchase:number;is_recurring:number;recurrence_key:string|null;version:number;paidAmount:number;paidDate:string;sourceId:string|null;sourceLabel:string;warning:string};
+export type Tx = {product:ProductPurchase|null;tool:ToolPurchase|null;expenseType:string;id:number;date:string;kind:Kind;category:string;subcategory:string;description:string;amount:number;booking_id:number|null;record_id:string|null;payment_method:string;financial_status:string;notes:string;is_stock_purchase:number;is_recurring:number;recurrence_key:string|null;version:number;paidAmount:number;paidDate:string;sourceId:string|null;sourceLabel:string;warning:string};
 export type FinanceRecord = {id:string;kind:string;status:string;data:Record<string,any>;version:number;created_at:string;updated_at:string};
 export type Category={id:number;name:string;type:Kind;active:number};
 export type FinanceData={transactions:Tx[];categories:Category[];records:FinanceRecord[];bookings:{id:number;amount:number;paid:number;status:string;start_at:string}[]};
@@ -39,19 +40,28 @@ export function parseMovement(p:Record<string,unknown>){
  const paidAmount=status==='pago'?amount:status==='parcial'?money(p.paidAmount):0;
  if(status==='parcial'&&(!paidAmount||paidAmount>=amount))throw Error('O valor parcial deve ser maior que zero e menor que o total.');
  if(paidAmount&&paidDate>brazilToday())throw Error('Um pagamento realizado não pode ter data futura.');
+ const expenseType=kind==='saida'?String(p.expenseType|| (p.isStockPurchase===true?'produto':'geral')):'',toolRaw=p.tool as Record<string,unknown>|undefined;
+ let tool:ToolPurchase|null=null;
+ if(kind==='saida'&&expenseType==='ferramenta'){
+  const brand=String(toolRaw?.brand??'').trim().slice(0,100),quantity=String(toolRaw?.quantity??'').trim(),warrantyUntil=String(toolRaw?.warrantyUntil??'').trim();
+  if(!brand||!/^\d+$/.test(quantity)||Number(quantity)<=0)throw Error('Informe a marca e a quantidade inteira da ferramenta.');
+  if(warrantyUntil&&(!validDate(warrantyUntil)||warrantyUntil<date))throw Error('Informe uma data de garantia válida, igual ou posterior à compra.');
+  tool={brand,quantity,warrantyUntil};
+ } else if(kind==='saida'&&!['produto','geral'].includes(expenseType)) throw Error('Selecione se a saída é produto, ferramenta ou gasto geral.');
  let product:ProductPurchase|null=null;
- if(kind==='saida'&&p.isStockPurchase===true){
+ if(kind==='saida'&&expenseType==='produto'){
  const raw=p.product as Record<string,unknown>|undefined;
- if(raw){const text=(k:string,max=120)=>String(raw[k]??'').trim().slice(0,max);
+ if(!raw)throw Error('Preencha os detalhes do produto ou insumo.');
+ {const text=(k:string,max=120)=>String(raw[k]??'').trim().slice(0,max);
  const services=text('services')===''?null:Number(raw.services),size=text('size').replace(',','.');
  if(!text('classification')||!text('name')||!size||!Number.isFinite(Number(size))||Number(size)<=0||!['ml','L','g','kg','un'].includes(text('unit')))throw Error('Informe classificação, nome e tamanho válido do produto.');
  if(services!==null&&(!Number.isSafeInteger(services)||services<0))throw Error('Informe uma quantidade inteira de serviços, igual ou maior que zero.');
  const startedOn=text('startedOn'),finishedOn=text('finishedOn');
  if(startedOn&&(!validDate(startedOn)||startedOn<date||startedOn>brazilToday()))throw Error('O início do uso deve estar entre a compra e hoje.');
- if(finishedOn&&(!validDate(finishedOn)||!startedOn||finishedOn<startedOn||finishedOn>brazilToday()))throw Error('A data em que acabou deve estar entre o início do uso e hoje.');
+ if(finishedOn&&(!validDate(finishedOn)||finishedOn<date||finishedOn>brazilToday()||(startedOn&&finishedOn<startedOn)))throw Error('A data em que acabou deve estar entre a compra, o início do uso e hoje.');
  if(services!==null&&services>0&&!startedOn)throw Error('Informe quando começou a usar o produto.');
  product={classification:text('classification'),name:text('name'),brand:text('brand'),size,unit:text('unit'),startedOn,finishedOn,services};
  }
  }
- return {product,date,kind,category:str('category',80),subcategory:str('subcategory',80),description:str('description'),amount,payment_method:str('paymentMethod',40)||'Não informado',financial_status:status,notes:str('notes',1000),is_stock_purchase:kind==='saida'&&p.isStockPurchase===true?1:0,is_recurring:kind==='saida'&&p.isRecurring===true?1:0,recurrence_key:kind==='saida'&&p.isRecurring===true?(str('recurrenceKey',100)||crypto.randomUUID()):null,paidAmount,paidDate};
+ return {product,tool,expenseType,date,kind,category:str('category',80),subcategory:str('subcategory',80),description:str('description'),amount,payment_method:str('paymentMethod',40)||'Não informado',financial_status:status,notes:str('notes',1000),is_stock_purchase:kind==='saida'&&expenseType==='produto'?1:0,is_recurring:kind==='saida'&&p.isRecurring===true?1:0,recurrence_key:kind==='saida'&&p.isRecurring===true?(str('recurrenceKey',100)||crypto.randomUUID()):null,paidAmount,paidDate};
 }
