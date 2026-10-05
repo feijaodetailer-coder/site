@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
-// Site estático para o GitHub Pages: https://feijaodetailer-coder.github.io/site/
-// Em domínio próprio (ou no desenvolvimento local), defina NEXT_PUBLIC_BASE_PATH="" .
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (process.env.NODE_ENV === "production" ? "/site" : "");
+// O GitHub Pages recebe /site pelo workflow pages.yml. Outros hosts, como o Vercel,
+// usam a raiz do domínio e por isso ficam sem prefixo por padrão.
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig: NextConfig = {
   output: "export",
