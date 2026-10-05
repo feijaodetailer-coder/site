@@ -2,7 +2,6 @@
 import { withBase } from "@/lib/base";
 import { apiFetch } from "@/lib/api";
 
-
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ArrowUpRight, CalendarDays, Check, CircleCheck, Clock3, MessageCircle, Plus, Search, X, CircleDollarSign } from "lucide-react";
 import SiteShell from "./site-shell";
@@ -18,12 +17,9 @@ import { serviceCategories as categories } from "../lib/service-categories";
 import { catalogTabs, type SiteDisplay } from "../lib/site-display";
 
 
-
-
 const whatsapp = (items: string[], custom = false) => "https://wa.me/5531993444280?text=" + encodeURIComponent(custom
   ? `Olá! Vim pelo site da Feijão Detailer e gostaria de um orçamento para um pacote personalizado com estes serviços:\n\n${items.map(name => `• ${name}`).join("\n")}\n\nPodemos conversar sobre os valores e a disponibilidade?`
   : `Olá! Vim pelo site da Feijão Detailer e tenho interesse no serviço: ${items[0]}. Gostaria de saber mais sobre os valores e a disponibilidade.`);
-
 
 const serviceImage = (name: string) => /polimento|pintura|vitrifica|proteção/i.test(name) ? withBase("/service-images/polimento-editorial.webp") : /intern|banco|couro|higien|odor/i.test(name) ? withBase("/service-images/pacotes-editorial.webp") : withBase("/service-images/limpeza-editorial.webp");
 const fallbackFeatured = categories[0].items.slice(0, 3);
@@ -48,7 +44,6 @@ const detailCatalogBase=(name:string)=>{
   ];
   return rules.find(([pattern])=>pattern.test(label))?.[1]||"";
 };
-
 
 export default function ServicesPage({ initialTab = "destaques" }: { initialTab?: string }) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -97,7 +92,6 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   const detailWhatsapp=selectedService?"https://wa.me/5531993444280?text="+encodeURIComponent(`Olá! Vim pelo site da Feijão Detailer e gostaria de conversar sobre ${selectedService}. ${detailOffers.length?"Gostaria de confirmar qual opção e valor se aplicam ao meu veículo.":"Gostaria de receber um orçamento para este serviço."}`):"#";
   const bookSelectedService=()=>{const id=detailOffers[0]?.id||null;setBookingServiceId(id);setSelectedService(null);setServiceBookingOpen(true);setView("agendar")};
 
-
   return <SiteShell current="services"><main className="services-page services-page-compact customer-area-catalog">
     <header className="services-heading services-heading-compact designer-hero">
       <div className="designer-hero-copy"><p className="services-eyebrow">FEIJÃO DETAILER · ESTÉTICA AUTOMOTIVA</p><h1>Seu carro merece<br/>esse <em>cuidado.</em></h1><p>Do primeiro brilho à proteção que fica. Encontre o cuidado ideal para o seu veículo, com atenção a cada detalhe.</p><div className="designer-hero-detail"><span/>Explore os serviços. Escolha no seu tempo.</div></div>
@@ -124,7 +118,8 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
     <footer className="services-footer"><span>Feijão Detailer · Cuidado em cada detalhe.</span><a href={withBase("/sobre-nos/")}>Conheça nossa história <ArrowUpRight size={16}/></a></footer>
     <Dialog open={!!selectedService} onOpenChange={open => { if (!open) setSelectedService(null); }}><DialogContent className="service-spec-dialog"><DialogHeader><DialogTitle>{selectedService}</DialogTitle><DialogDescription>Escolha como quer seguir com este serviço</DialogDescription></DialogHeader>{selectedService&&<><ul className="service-spec-list">{(serviceDetails[selectedService]?.items||[]).map(item=><li key={item}><CircleCheck size={18}/><span>{item}</span></li>)}</ul><div className="service-duration"><Clock3 size={16}/><span>{serviceDetails[selectedService]?.duration?<>Tempo estimado: <strong>{serviceDetails[selectedService].duration}</strong></>:"Tempo sob avaliação"}</span></div><div className="service-choice-actions"><button className="service-choice-book" onClick={bookSelectedService}><CalendarDays size={18}/>Agendar serviço</button><a className="service-choice-whatsapp" href={detailWhatsapp} target="_blank" rel="noopener noreferrer"><MessageCircle size={18}/>Chamar no WhatsApp</a><button className="service-choice-price" aria-expanded={showServicePrice} onClick={()=>setShowServicePrice(value=>!value)}><CircleDollarSign size={18}/>{showServicePrice?"Ocultar valores":"Mostrar valor"}</button></div>{showServicePrice&&<div className="service-price-panel" aria-live="polite">{detailOffers.length?<><strong>Valores iniciais por veículo</strong><ul>{detailOffers.map(offer=><li key={offer.id}><span>{variantLabel(offer.name)}</span><strong>{brl(offer.price)}</strong></li>)}</ul><small>O valor final pode mudar após a avaliação do veículo.</small></>:<><strong>Orçamento sob avaliação</strong><p>Este item ainda não tem um preço cadastrado. A equipe confirma o valor pelo WhatsApp antes de iniciar.</p></>}</div>}</>}</DialogContent></Dialog>
   </main></SiteShell>;
+}
 
-
-
-
+function ServiceCard({ name, onOpen }: { name: string; onOpen: (name: string) => void }) {
+  return <article className="clean-service-card compact-service-card"><h3>{name}</h3><p>{serviceDetails[name]?.duration ? `Estimativa · ${serviceDetails[name].duration}` : "Tempo sob avaliação"}</p><button onClick={() => onOpen(name)}>Ver especificação <ArrowUpRight size={16}/></button></article>;
+}
