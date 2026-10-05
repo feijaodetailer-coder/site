@@ -31,14 +31,16 @@ export async function publicGet(request: Request) {
       ]);
       return reply({ date: day, slots: availableBookingSlots(day, service.booking_duration, booked.results, blocks.results.map(row => row.data)) }, 200, noStore);
     }
-    const [services, rules, popular] = await Promise.all([
+    const [services, rules, popular, reviews] = await Promise.all([
       db().prepare("SELECT id,name,category,price,duration,booking_duration,description FROM services ORDER BY category,name").all<{ id: number; category: string }>(),
       db().prepare("SELECT id,data FROM workflow_records WHERE kind='planrule'").all(),
       db().prepare("SELECT service_name,clicks FROM service_interest WHERE clicks>0 ORDER BY clicks DESC,service_name LIMIT 3").all<{ service_name: string; clicks: number }>(),
+      db().prepare("SELECT r.id,r.data,r.created_at,c.name AS customer_name FROM workflow_records r JOIN clients c ON c.id=r.client_id WHERE r.kind='review' AND r.status='publicado' ORDER BY r.created_at DESC LIMIT 12").all<{id:string;data:Record<string,unknown>;created_at:string;customer_name:string}>(),
     ]);
     // O cliente do site esperava `data` como texto JSON nas regras de plano.
     const planRules = rules.results.map((row: any) => ({ id: row.id, data: JSON.stringify(row.data) }));
-    return reply({ services: services.results.filter(service => offerIsVisible(settings, service)), rules: planRules, popular: popular.results, settings }, 200, noStore);
+    const publicReviews = reviews.results.map(row => ({ id: row.id, serviceName: value(row.data.serviceName,150), rating: Number(row.data.rating), comment: value(row.data.comment,500), customerName: value(row.customer_name.split(/\s+/)[0],40), createdAt: row.created_at })).filter(row => row.serviceName && Number.isInteger(row.rating) && row.rating >= 1 && row.rating <= 5);
+    return reply({ services: services.results.filter(service => offerIsVisible(settings, service)), rules: planRules, popular: popular.results, reviews: publicReviews, settings }, 200, noStore);
   } catch {
     return jsonError("Catálogo indisponível. Tente novamente mais tarde.", 503);
   }
@@ -52,6 +54,21 @@ export async function publicPost(request: Request) {
     const payload = JSON.parse(raw) as Record<string, unknown>;
     if (payload.website) return reply({ ok: true });
     const type = value(payload.type, 12), d = db();
+    if (type === "review") {
+      const { user, client } = await identity(request);
+      if (!user || !client) return jsonError("Entre na sua conta de cliente para avaliar.", 401);
+      const orderId = value(payload.orderId, 160), serviceId = Number(payload.serviceId), rating = Number(payload.rating), comment = value(payload.comment, 500);
+      if (!orderId || !Number.isInteger(serviceId) || serviceId < 1 || !Number.isInteger(rating) || rating < 1 || rating > 5) return jsonError("Escolha um serviço e uma nota de 1 a 5.");
+      const order = await d.prepare("SELECT id,data FROM workflow_records WHERE id=? AND kind='order' AND client_id=? AND status='entregue'").bind(orderId, client.id).first<{id:string;data:{items?:{name?:string}[]}}>();
+      if (!order) return jsonError("A avaliação só fica disponível para um serviço concluído da sua conta.", 403);
+      const service = await d.prepare("SELECT id,name FROM services WHERE id=?").bind(serviceId).first<{id:number;name:string}>();
+      const completedNames = Array.isArray(order.data.items) ? order.data.items.map(item => value(item?.name,150)) : [];
+      if (!service || !completedNames.includes(service.name)) return jsonError("Esse serviço não consta nesta ordem concluída.", 403);
+      const id = `review:${order.id}:${service.id}`, stamp = new Date().toISOString();
+      const inserted = await d.prepare("INSERT INTO workflow_records(id,kind,client_id,parent_id,status,data,created_at,updated_at) VALUES(? ,'review',?,?,'publicado',?::jsonb,?,?) ON CONFLICT (id) DO NOTHING RETURNING id").bind(id,client.id,order.id,JSON.stringify({serviceId:service.id,serviceName:service.name,rating,comment}),stamp,stamp).first<{id:string}>();
+      if (!inserted) return jsonError("Você já avaliou esse serviço desta ordem.",409);
+      return reply({ok:true,id:inserted.id},201,noStore);
+    }
     if (type === "interest") {
       const serviceName = value(payload.serviceName, 100);
       if (!serviceName) return jsonError("Serviço inválido.");
