@@ -21,7 +21,15 @@ const whatsapp = (items: string[], custom = false) => "https://wa.me/55319934442
   ? `Olá! Vim pelo site da Feijão Detailer e gostaria de um orçamento para um pacote personalizado com estes serviços:\n\n${items.map(name => `• ${name}`).join("\n")}\n\nPodemos conversar sobre os valores e a disponibilidade?`
   : `Olá! Vim pelo site da Feijão Detailer e tenho interesse no serviço: ${items[0]}. Gostaria de saber mais sobre os valores e a disponibilidade.`);
 
-const serviceImage = (name: string) => /polimento|pintura|vitrifica|proteção/i.test(name) ? withBase("/service-images/polimento-editorial.webp") : /intern|banco|couro|higien|odor/i.test(name) ? withBase("/service-images/pacotes-editorial.webp") : withBase("/service-images/limpeza-editorial.webp");
+const serviceImage = (name: string) => {
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const image = normalized.includes("moto") ? "motos-premium-v2.png"
+    : /banco|couro|higien|odor|carpete|forro|intern|tecido|motor|chassi/.test(normalized) ? "tratamentos-premium-v2.png"
+    : /polimento|pintura|vitrifica|enceramento|farol|vidro/.test(normalized) ? "polimento-premium-v2.png"
+    : /pacote/.test(normalized) ? "pacotes-premium-v2.png"
+    : "limpeza-premium-v2.png";
+  return withBase(`/service-images/${image}`);
+};
 const fallbackFeatured = categories[0].items.slice(0, 3);
 type PricedService={id:number;name:string;category:string;price:number;duration:number};
 const packageBase=(name:string)=>name.replace(" · Popular","").replace(" · SUV","").replace(" · Caminhonete","").replace(" · 5 lugares","").replace(" · 7 lugares","");
