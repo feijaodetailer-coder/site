@@ -34,7 +34,7 @@ export async function workflowGet(request: Request) {
     const backup = who.admin ? await dailyBackup().catch(() => ({ saved: false, error: "Não foi possível salvar a cópia diária. Use a exportação manual." })) : null;
     const { settings: displaySettings } = await readSiteDisplay();
     const rows = who.admin ? await d.prepare("SELECT * FROM workflow_records ORDER BY created_at DESC").all<Row>()
-      : await d.prepare("SELECT * FROM workflow_records WHERE (client_id=? AND kind IN ('vehicle','quote','order','inspection','followup','benefit','notification_read')) OR kind='planrule' OR (kind='campaign' AND status='ativa' AND data->>'starts'<=? AND data->>'ends'>=?) ORDER BY created_at DESC").bind(cid, dayInBrazil(), dayInBrazil()).all<Row>();
+      : await d.prepare("SELECT * FROM workflow_records WHERE (client_id=? AND kind IN ('vehicle','quote','order','inspection','followup','benefit','notification_read','review')) OR kind='planrule' OR (kind='campaign' AND status='ativa' AND data->>'starts'<=? AND data->>'ends'>=?) ORDER BY created_at DESC").bind(cid, dayInBrazil(), dayInBrazil()).all<Row>();
     const [clients, bookings, plans, services, files, transactions] = await Promise.all([
       who.admin ? d.prepare("SELECT * FROM clients ORDER BY name").all() : d.prepare("SELECT id,name,phone,vehicle,plate,email FROM clients WHERE id=?").bind(cid).all(),
       who.admin ? d.prepare("SELECT b.*,s.name AS service_name,s.duration AS service_duration,COALESCE(b.booking_duration,s.booking_duration,s.duration) AS duration FROM bookings b JOIN services s ON s.id=b.service_id ORDER BY start_at DESC").all()
