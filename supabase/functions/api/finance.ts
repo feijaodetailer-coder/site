@@ -44,7 +44,8 @@ export async function readFinance(): Promise<FinanceData> {
     const knownPartial = meta?.data.paidAmount;
     if (t.financial_status === "parcial" && knownPartial === undefined) warning = "Pagamento parcial antigo sem valor recebido informado. Edite para conciliar o valor real.";
     const parts = String(t.category).split(" · "), method = t.payment_method || parts.slice(1).join(" · ") || "Não informado";
-    return { ...t, product: meta?.data.product || null, tool: meta?.data.tool || null, expenseType: meta?.data.expenseType || (meta?.data.product ? "produto" : meta?.data.tool ? "ferramenta" : "geral"), category: parts[0], payment_method: method, version: meta?.version || 0, paidAmount: t.financial_status === "pago" ? t.amount : Number(knownPartial || 0), paidDate: meta?.data.paidDate || t.date, sourceId, sourceLabel: record ? `${record.kind === "order" ? "OS" : "Conta"} · ${record.data.title}` : t.booking_id ? `Agendamento #${t.booking_id}` : sourceId?.startsWith("plan:") ? "Plano mensal" : "Lançamento manual", warning };
+    const noteInstallments=Number(String(t.notes||'').match(/(\d+)\s+parcelas?/i)?.[1]||1);
+    return { ...t, product: meta?.data.product || null, tool: meta?.data.tool || null, expenseType: meta?.data.expenseType || (meta?.data.product ? "produto" : meta?.data.tool ? "ferramenta" : "geral"), creditCard: String(meta?.data.creditCard||""), installments: Number(meta?.data.installments||noteInstallments), category: parts[0], payment_method: method, version: meta?.version || 0, paidAmount: t.financial_status === "pago" ? t.amount : Number(knownPartial || 0), paidDate: meta?.data.paidDate || t.date, sourceId, sourceLabel: record ? `${record.kind === "order" ? "OS" : "Conta"} · ${record.data.title}` : t.booking_id ? `Agendamento #${t.booking_id}` : sourceId?.startsWith("plan:") ? "Plano mensal" : "Lançamento manual", warning };
   });
   return { transactions, categories: cats.results, records, bookings: bs.results };
 }
@@ -65,7 +66,7 @@ export async function createMovement(p: Record<string, unknown>, actor: string) 
   await d.batch([
     history(event, actor, { action: "criar", value }),
     d.prepare(`INSERT INTO transactions(${fields.join(",")}) VALUES(${fields.map(() => "?").join(",")})`).bind(...fields.map(k => (value as Record<string, unknown>)[k])),
-    d.prepare("INSERT INTO workflow_records(id,kind,status,data,created_at,updated_at) VALUES('finance-meta:'||currval(pg_get_serial_sequence('transactions','id')),'finance_meta','ativo',?::jsonb,?,?)").bind(json({ paidAmount: value.paidAmount, paidDate: value.paidDate, expenseType: value.expenseType, product: value.product, tool: value.tool }), stamp(), stamp()),
+    d.prepare("INSERT INTO workflow_records(id,kind,status,data,created_at,updated_at) VALUES('finance-meta:'||currval(pg_get_serial_sequence('transactions','id')),'finance_meta','ativo',?::jsonb,?,?)").bind(json({ paidAmount: value.paidAmount, paidDate: value.paidDate, expenseType: value.expenseType, product: value.product, tool: value.tool, creditCard: value.creditCard, installments: value.installments }), stamp(), stamp()),
     ...(value.product ? [d.prepare("INSERT INTO workflow_records(id,kind,status,data,created_at,updated_at) VALUES('finance-product:'||currval(pg_get_serial_sequence('transactions','id')),'product','ativo',?::jsonb,?,?)").bind(json(productCycle(value)), stamp(), stamp())] : []),
   ]);
 }
@@ -109,7 +110,7 @@ export async function changeMovement(p: Record<string, unknown>, actor: string, 
     history(crypto.randomUUID(), actor, { action: remove ? "excluir" : "editar", before: t, after: value }, conditions.join(" AND "), binds),
     change,
     ...extra,
-    d.prepare("INSERT INTO workflow_records(id,kind,status,data,version,created_at,updated_at) VALUES(?,'finance_meta','ativo',?::jsonb,1,?,?) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data,version=workflow_records.version+1,updated_at=EXCLUDED.updated_at").bind(metaId(id), json({ paidAmount: value?.paidAmount || 0, paidDate: value?.paidDate || t.paidDate, expenseType: value?.expenseType || "geral", product: value?.product || null, tool: value?.tool || null }), stamp(), stamp()),
+    d.prepare("INSERT INTO workflow_records(id,kind,status,data,version,created_at,updated_at) VALUES(?,'finance_meta','ativo',?::jsonb,1,?,?) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data,version=workflow_records.version+1,updated_at=EXCLUDED.updated_at").bind(metaId(id), json({ paidAmount: value?.paidAmount || 0, paidDate: value?.paidDate || t.paidDate, expenseType: value?.expenseType || "geral", product: value?.product || null, tool: value?.tool || null, creditCard: value?.creditCard || "", installments: value?.installments || 1 }), stamp(), stamp()),
     ...(value?.product ? [d.prepare("INSERT INTO workflow_records(id,kind,status,data,created_at,updated_at) VALUES(?,'product','ativo',?::jsonb,?,?) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data,version=workflow_records.version+1,updated_at=EXCLUDED.updated_at").bind(productId(id), json(productCycle(value)), stamp(), stamp())] : []),
     ...(linkedProduct && (remove || !value?.product) ? [d.prepare("DELETE FROM workflow_records WHERE id=? AND kind='product'").bind(linkedProduct.id)] : []),
   ]);
