@@ -1,11 +1,16 @@
 export const expenseCategories = ['Produtos e insumos','Contas fixas','Água','Luz','Telefone e internet','Gastos gerais','Manutenção e reforma','Alimentação','Equipamentos','Marketing','Transporte','Outras despesas'];
 export const paymentMethods = ['Pix','Dinheiro','Cartão de crédito','Cartão de débito','Transferência','Boleto','Outro','Não informado'];
+export const creditCards = [
+ {name:'Itaú',closingDay:4,dueDay:12},
+ {name:'Bradesco',closingDay:4,dueDay:12},
+ {name:'Nubank',closingDay:4,dueDay:12},
+] as const;
 export type Kind = 'entrada'|'saida';
 export type ProductPurchase={classification:string;name:string;brand:string;size:string;unit:string;startedOn:string;finishedOn:string;services:number|null};
 export type ToolPurchase={brand:string;quantity:string;warrantyUntil:string};
 export const productClassifications=["Ácido","Alcalino","Shampoo","APC","Cera","Desengraxante","Selante","Polidor","Outro"];
 export function productDays(p:ProductPurchase){return p.startedOn?Math.round((Date.parse((p.finishedOn||brazilToday())+"T12:00:00Z")-Date.parse(p.startedOn+"T12:00:00Z"))/86400000):null;}
-export type Tx = {product:ProductPurchase|null;tool:ToolPurchase|null;expenseType:string;id:number;date:string;kind:Kind;category:string;subcategory:string;description:string;amount:number;booking_id:number|null;record_id:string|null;payment_method:string;financial_status:string;notes:string;is_stock_purchase:number;is_recurring:number;recurrence_key:string|null;version:number;paidAmount:number;paidDate:string;sourceId:string|null;sourceLabel:string;warning:string};
+export type Tx = {product:ProductPurchase|null;tool:ToolPurchase|null;expenseType:string;creditCard:string;installments:number;id:number;date:string;kind:Kind;category:string;subcategory:string;description:string;amount:number;booking_id:number|null;record_id:string|null;payment_method:string;financial_status:string;notes:string;is_stock_purchase:number;is_recurring:number;recurrence_key:string|null;version:number;paidAmount:number;paidDate:string;sourceId:string|null;sourceLabel:string;warning:string};
 export type FinanceRecord = {id:string;kind:string;status:string;data:Record<string,any>;version:number;created_at:string;updated_at:string};
 export type Category={id:number;name:string;type:Kind;active:number};
 export type FinanceData={transactions:Tx[];categories:Category[];records:FinanceRecord[];bookings:{id:number;amount:number;paid:number;status:string;start_at:string}[]};
@@ -41,6 +46,10 @@ export function parseMovement(p:Record<string,unknown>){
  if(status==='parcial'&&(!paidAmount||paidAmount>=amount))throw Error('O valor parcial deve ser maior que zero e menor que o total.');
  if(paidAmount&&paidDate>brazilToday())throw Error('Um pagamento realizado não pode ter data futura.');
  const expenseType=kind==='saida'?String(p.expenseType|| (p.isStockPurchase===true?'produto':'geral')):'',toolRaw=p.tool as Record<string,unknown>|undefined;
+ const paymentMethod=str('paymentMethod',40)||'Não informado';
+ const creditCard=paymentMethod==='Cartão de crédito'?str('creditCard',40):'';
+ const installmentInput=String(p.installments??'1'),installments=paymentMethod==='Cartão de crédito'?Number(installmentInput):1;
+ if(paymentMethod==='Cartão de crédito'&&(!creditCards.some(card=>card.name===creditCard)||!/^\d+$/.test(installmentInput)||!Number.isSafeInteger(installments)||installments<1||installments>48))throw Error('Selecione o cartão e informe de 1 a 48 parcelas.');
  let tool:ToolPurchase|null=null;
  if(kind==='saida'&&expenseType==='ferramenta'){
   const brand=String(toolRaw?.brand??'').trim().slice(0,100),quantity=String(toolRaw?.quantity??'').trim(),warrantyUntil=String(toolRaw?.warrantyUntil??'').trim();
@@ -63,5 +72,5 @@ export function parseMovement(p:Record<string,unknown>){
  product={classification:text('classification'),name:text('name'),brand:text('brand'),size,unit:text('unit'),startedOn,finishedOn,services};
  }
  }
- return {product,tool,expenseType,date,kind,category:str('category',80),subcategory:str('subcategory',80),description:str('description'),amount,payment_method:str('paymentMethod',40)||'Não informado',financial_status:status,notes:str('notes',1000),is_stock_purchase:kind==='saida'&&expenseType==='produto'?1:0,is_recurring:kind==='saida'&&p.isRecurring===true?1:0,recurrence_key:kind==='saida'&&p.isRecurring===true?(str('recurrenceKey',100)||crypto.randomUUID()):null,paidAmount,paidDate};
+ return {product,tool,expenseType,date,kind,category:str('category',80),subcategory:str('subcategory',80),description:str('description'),amount,payment_method:paymentMethod,creditCard,installments,financial_status:status,notes:str('notes',1000),is_stock_purchase:kind==='saida'&&expenseType==='produto'?1:0,is_recurring:kind==='saida'&&p.isRecurring===true?1:0,recurrence_key:kind==='saida'&&p.isRecurring===true?(str('recurrenceKey',100)||crypto.randomUUID()):null,paidAmount,paidDate};
 }
