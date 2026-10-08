@@ -37,6 +37,7 @@ export default function Dashboard({selectedTab}:{selectedTab?:string}){
   const [data,setData]=useState<Data>(initial),[loading,setLoading]=useState(true),[error,setError]=useState(""),[saving,setSaving]=useState(false),[tab,setTab]=useState("inicio");
   const [client,setClient]=useState({name:"",phone:"",vehicle:"",plate:"",additionalVehicles:[] as {vehicle:string;plate:string}[],notes:"",address:"",referredByClientId:""});
   const [selectedClient,setSelectedClient]=useState<Client|null>(null),[courtesy,setCourtesy]=useState("");
+  const [addingVehicle,setAddingVehicle]=useState(false),[vehicleSaving,setVehicleSaving]=useState(false),[vehicleError,setVehicleError]=useState(""),[newVehicle,setNewVehicle]=useState({title:"",plate:""});
   const [selectedVehicleHistory,setSelectedVehicleHistory]=useState<ClientVehicle|null>(null);
   const [referralPeriod,setReferralPeriod]=useState(today().slice(0,7));
   const [clientSearch,setClientSearch]=useState(""),[clientFilter,setClientFilter]=useState("all"),[clientSort,setClientSort]=useState("name");
@@ -50,6 +51,17 @@ export default function Dashboard({selectedTab}:{selectedTab?:string}){
   const load=useCallback(async()=>{setLoading(true);try{const r=await apiFetch("/api/data",{cache:"no-store"});const j=await r.json() as Data & {error?:string};if(!r.ok)throw new Error(j.error||"Falha ao carregar");setData(j);setError("")}catch(e){setError(e instanceof Error?e.message:"Falha ao carregar")}finally{setLoading(false)}},[]);
   useEffect(()=>{void load()},[load]);
   const save=async(payload:Record<string,unknown>,done:()=>void,method="POST")=>{setSaving(true);setError("");try{const r=await apiFetch("/api/data",{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const j=await r.json() as {error?:string};if(!r.ok)throw new Error(j.error||"Não foi possível salvar");done();await load()}catch(e){setError(e instanceof Error?e.message:"Não foi possível salvar")}finally{setSaving(false)}};
+  const addClientVehicle=async()=>{
+    if(!selectedClient)return;
+    setVehicleSaving(true);setVehicleError("");
+    try{
+      const response=await apiFetch("/api/workflow",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save",kind:"vehicle",clientId:selectedClient.id,parentId:"",status:"aberto",data:{title:newVehicle.title,plate:newVehicle.plate}})});
+      const result=await response.json() as {error?:string};
+      if(!response.ok)throw new Error(result.error||"Não foi possível cadastrar o veículo.");
+      await load();setNewVehicle({title:"",plate:""});setAddingVehicle(false);
+    }catch(error){setVehicleError(error instanceof Error?error.message:"Não foi possível cadastrar o veículo.");}
+    finally{setVehicleSaving(false);}
+  };
   const month=today().slice(0,7);
   const metrics=useMemo(()=>{const tx=data.transactions.filter(t=>(t.financial_status||"pago")==="pago"&&t.date.slice(0,7)===month);const income=tx.filter(t=>t.kind==="entrada").reduce((a,t)=>a+t.amount,0);const expense=tx.filter(t=>t.kind==="saida").reduce((a,t)=>a+t.amount,0);const receivable=data.bookings.filter(b=>!["cancelado","solicitado"].includes(b.status)).reduce((a,b)=>a+b.amount-b.paid,0);return {income,expense,receivable,balance:income-expense}},[data,month]);
   const upcoming=useMemo(()=>data.bookings.filter(b=>b.status!=="cancelado"&&b.start_at.slice(0,10)>=today()).sort((a,b)=>a.start_at.localeCompare(b.start_at)).slice(0,8),[data]);
@@ -127,7 +139,16 @@ export default function Dashboard({selectedTab}:{selectedTab?:string}){
           {selectedClient&&<div className="space-y-5">
             <div className="text-sm text-muted-foreground">{selectedClient.phone||"Sem telefone"}{selectedClient.address?` · ${selectedClient.address}`:""}{selectedClient.referred_by_client_id?` · Indicado por ${clientName(selectedClient.referred_by_client_id)}`:""}</div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><div className="stat"><span>Serviços realizados</span><strong>{serviceCount}</strong></div><div className="stat"><span>Total gasto</span><strong>{brl(totalSpent)}</strong></div><div className="stat"><span>Ticket médio</span><strong>{brl(serviceCount?Math.round(totalSpent/serviceCount):0)}</strong></div><div className="stat"><span>Última visita</span><strong className="text-base">{lastVisit?new Date(`${lastVisit}T12:00:00`).toLocaleDateString("pt-BR"):"—"}</strong></div><div className="stat"><span>Indicações feitas</span><strong>{data.clients.filter(c=>c.referred_by_client_id===selectedClient.id).length}</strong></div></div>
-            <section><h3 className="mb-2 font-semibold">Veículos cadastrados</h3>{clientVehicles.length?<div className="client-vehicles-list">{clientVehicles.map(v=><button type="button" key={v.id} className="client-vehicle-history-trigger" onClick={()=>setSelectedVehicleHistory(v)}><span><strong>{v.title}</strong><small>{v.plate||"Placa não informada"}</small></span><span>Ver histórico <span aria-hidden="true">→</span></span></button>)}</div>:<p className="text-sm text-muted-foreground">Nenhum veículo cadastrado.</p>}</section>
+            <section>
+              <div className="flex items-center justify-between gap-3"><h3 className="mb-2 font-semibold">Veículos cadastrados</h3><Button type="button" size="sm" onClick={()=>{setNewVehicle({title:"",plate:""});setVehicleError("");setAddingVehicle(value=>!value)}}><Plus size={15}/>Adicionar veículo</Button></div>
+              {clientVehicles.length?<div className="client-vehicles-list">{clientVehicles.map(v=><button type="button" key={v.id} className="client-vehicle-history-trigger" onClick={()=>setSelectedVehicleHistory(v)}><span><strong>{v.title}</strong><small>{v.plate||"Placa não informada"}</small></span><span>Ver histórico <span aria-hidden="true">→</span></span></button>)}</div>:<p className="text-sm text-muted-foreground">Nenhum veículo cadastrado.</p>}
+              {addingVehicle&&<form className="mt-3 grid gap-3 rounded-lg border p-3" onSubmit={event=>{event.preventDefault();void addClientVehicle()}}>
+                {vehicleError&&<p className="text-sm text-red-700" role="alert">{vehicleError}</p>}
+                <Field label="Marca e modelo"><Input required maxLength={100} value={newVehicle.title} onChange={event=>setNewVehicle({...newVehicle,title:event.target.value})} placeholder="Ex.: Honda Civic"/></Field>
+                <Field label="Placa (opcional)"><Input maxLength={12} value={newVehicle.plate} onChange={event=>setNewVehicle({...newVehicle,plate:event.target.value.toUpperCase()})} placeholder="ABC-1234"/></Field>
+                <div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={vehicleSaving} onClick={()=>setAddingVehicle(false)}>Voltar</Button><Button type="submit" disabled={vehicleSaving}>{vehicleSaving?"Salvando...":"Salvar veículo"}</Button></div>
+              </form>}
+            </section>
             <section><h3 className="mb-2 font-semibold">Histórico de indicações e cortesias</h3>{data.referralEvents.filter(r=>r.client_id===selectedClient.id).length?<ul className="space-y-2">{data.referralEvents.filter(r=>r.client_id===selectedClient.id).map(r=><li key={r.id} className="rounded-md border p-2 text-sm"><strong>{r.event_type==="cortesia"?"Cortesia":"Indicação"}</strong> · {r.referred_name||r.description}<small className="block text-muted-foreground">{new Date(r.created_at).toLocaleDateString("pt-BR")}{r.event_type==="cortesia"?` · ${r.description}`:""}</small></li>)}</ul>:<p className="text-sm text-muted-foreground">Nenhuma indicação ou cortesia registrada.</p>}</section>
             <form className="form border-t pt-4" onSubmit={e=>{e.preventDefault();void save({table:"referralEvents",clientId:selectedClient.id,description:courtesy},()=>setCourtesy(""))}}><Field label="Registrar cortesia concedida"><Input required value={courtesy} onChange={e=>setCourtesy(e.target.value)} placeholder="Ex.: lavagem externa gratuita"/></Field><Button disabled={saving||!courtesy.trim()} type="submit"><Plus size={16}/> Registrar no histórico</Button></form>
           </div>}
