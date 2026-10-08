@@ -261,7 +261,7 @@ async function saveRecord(p: any, who: { admin: boolean; client: { id: number } 
     if (!who.admin) { if (old && old.status !== "solicitado") throw Error("Orçamento em análise não pode ser editado."); status = "solicitado"; data.total = 0; data.discount = 0; data.items = (data.items as { name: string; qty: number }[]).map(i => ({ ...i, price: 0 })); }
     else if (kind === "quote" && !["rascunho", "enviado", "solicitado"].includes(status)) throw Error("Use a aprovação do orçamento para gerar a OS.");
     if (kind === "order") {
-      data.sendReminders = input.sendReminders === true || input.sendReminders === "true" ? true : (old ? old.data.sendReminders !== false : false);
+      data.sendReminders = input.sendReminders !== undefined ? (input.sendReminders === true || input.sendReminders === "true") : (old ? old.data.sendReminders !== false : false);
       if (!["aguardando entrada", "inspeção", "execução", "revisão", "pronto", "entregue", "cancelado"].includes(status)) throw Error("Etapa inválida.");
       data.paid = old ? old.data.paid || 0 : 0;
       if (Number(data.total) < Number(data.paid)) throw Error("O total não pode ser menor que o valor recebido.");
