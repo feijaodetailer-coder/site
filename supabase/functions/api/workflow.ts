@@ -87,6 +87,23 @@ export async function workflowPost(request: Request) {
       await d.batch([d.prepare("DELETE FROM workflow_records WHERE id=? AND kind='quote_template' AND version=?").bind(template.id, template.version), audit(actor, "Modelo de orçamento excluído", template.id)]);
       return reply({ ok: true });
     }
+    if (p.action === "cancel_order") {
+      if (!who.admin) return noAccess();
+      const order = await record(text(p.id));
+      if (order?.kind !== "order") throw Error("OS não encontrada.");
+      if (order.status === "cancelado") return reply({ ok: true, id: order.id });
+      if (order.status === "entregue") throw Error("Uma OS entregue não pode ser cancelada. Corrija o registro em vez disso.");
+      const version = Number(p.version);
+      if (order.version !== version) throw Error("OS alterada. Atualize antes de cancelar.");
+      const stamp = now();
+      const results = await d.batch([
+        d.prepare("UPDATE workflow_records SET status='cancelado',version=version+1,updated_at=? WHERE id=? AND kind='order' AND version=? AND status<>'entregue'").bind(stamp, order.id, version),
+        ...(order.data.bookingId ? [d.prepare("UPDATE bookings SET status='cancelado' WHERE id=? AND status IN ('solicitado','agendado','em andamento') AND EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND status='cancelado' AND updated_at=? AND version=?)").bind(Number(order.data.bookingId), order.id, stamp, version + 1)] : []),
+        d.prepare("INSERT INTO audit_log(actor,action,record_id,created_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND status='cancelado' AND updated_at=? AND version=?)").bind(actor, "OS cancelada", order.id, stamp, order.id, stamp, version + 1),
+      ]);
+      if (!results[0]?.count) throw Error("A OS foi alterada. Atualize e tente novamente.");
+      return reply({ ok: true, id: order.id });
+    }
     if (p.action === "schedule_order") {
       if (!who.admin) return noAccess();
       const order = await record(text(p.id));
@@ -224,10 +241,10 @@ async function saveRecord(p: any, who: { admin: boolean; client: { id: number } 
   if (cid && !await d.prepare("SELECT id FROM clients WHERE id=?").bind(cid).first()) throw Error("Cliente inválido.");
   const input = p.data || {}, data: Record<string, any> = {};
   let status = text(p.status, 40) || "aberto";
-  const allowed: Record<string, string[]> = { campaign: ["title", "description", "offer", "terms", "starts", "ends"], vehicle: ["title", "year", "plate", "km", "notes", "protection"], quote: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes"], quote_template: ["title", "items", "discount", "notes"], order: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes", "checkIn", "checkOut", "minutes", "fuel", "km", "objects", "damages", "maintenanceDate", "bookingId", "productsUsed"], inspection: ["title", "stage", "km", "fuel", "objects", "damages", "checks"], product: ["title", "supplier", "unit", "quantity", "minimum", "unitCost", "expires", "category", "brand", "volume", "purchasePrice", "startDate", "endDate"], followup: ["title", "date", "type", "notes", "rating"], planrule: ["title", "visits", "included", "frequency", "validity", "renewal", "cancellation", "scheduling"], bill: ["title", "total", "due", "direction", "category", "costType"], block: ["title", "start", "end"], settings: ["title", "address", "phone", "instructions"] };
+  const allowed: Record<string, string[]> = { campaign: ["title", "description", "offer", "terms", "starts", "ends"], vehicle: ["title", "year", "plate", "km", "notes", "protection"], quote: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes"], quote_template: ["title", "items", "discount", "notes"], order: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes", "checkIn", "checkOut", "minutes", "fuel", "km", "objects", "damages", "maintenanceDate", "completedDate", "sendReminders", "bookingId", "productsUsed"], inspection: ["title", "stage", "km", "fuel", "objects", "damages", "checks"], product: ["title", "supplier", "unit", "quantity", "minimum", "unitCost", "expires", "category", "brand", "volume", "purchasePrice", "startDate", "endDate"], followup: ["title", "date", "type", "notes", "rating"], planrule: ["title", "visits", "included", "frequency", "validity", "renewal", "cancellation", "scheduling"], bill: ["title", "total", "due", "direction", "category", "costType"], block: ["title", "start", "end"], settings: ["title", "address", "phone", "instructions"] };
   for (const key of allowed[kind] || []) if (input[key] !== undefined) data[key] = input[key];
   const arrays = ["items", "checkIn", "checkOut", "damages", "checks", "productsUsed"];
-  for (const key of Object.keys(data)) if (!arrays.includes(key)) data[key] = text(data[key]);
+  for (const key of Object.keys(data)) if (!arrays.includes(key) && key !== "sendReminders") data[key] = text(data[key]);
   for (const key of ["checkIn", "checkOut", "damages", "checks"]) if (data[key] !== undefined) { if (!Array.isArray(data[key]) || data[key].length > 30) throw Error("Checklist inválido."); data[key] = (data[key] as unknown[]).map(x => text(x, 150)); }
   if (data.productsUsed !== undefined) { if (!Array.isArray(data.productsUsed) || data.productsUsed.length > 30) throw Error("Seleção de produtos inválida."); data.productsUsed = [...new Set((data.productsUsed as unknown[]).map(x => text(x, 120)))]; }
   if (!text(data.title, 120)) throw Error("Informe o título ou nome.");
@@ -244,6 +261,7 @@ async function saveRecord(p: any, who: { admin: boolean; client: { id: number } 
     if (!who.admin) { if (old && old.status !== "solicitado") throw Error("Orçamento em análise não pode ser editado."); status = "solicitado"; data.total = 0; data.discount = 0; data.items = (data.items as { name: string; qty: number }[]).map(i => ({ ...i, price: 0 })); }
     else if (kind === "quote" && !["rascunho", "enviado", "solicitado"].includes(status)) throw Error("Use a aprovação do orçamento para gerar a OS.");
     if (kind === "order") {
+      data.sendReminders = input.sendReminders !== undefined ? (input.sendReminders === true || input.sendReminders === "true") : (old ? old.data.sendReminders !== false : false);
       if (!["aguardando entrada", "inspeção", "execução", "revisão", "pronto", "entregue", "cancelado"].includes(status)) throw Error("Etapa inválida.");
       data.paid = old ? old.data.paid || 0 : 0;
       if (Number(data.total) < Number(data.paid)) throw Error("O total não pode ser menor que o valor recebido.");
@@ -302,7 +320,7 @@ async function saveRecord(p: any, who: { admin: boolean; client: { id: number } 
   if (kind === "order" && status === "entregue") {
     const services = (await d.prepare("SELECT name,description,category FROM services").all<{ name: string; description: string; category: string }>()).results;
     const vitrification = hasVitrification(data, services);
-    const followupData = vitrification ? vitrificationFollowup(id, data) : { title: `Manutenção: ${data.title}`, date: data.maintenanceDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), type: "Manutenção", notes: "Confirmar com o cliente o próximo cuidado." };
+    const followupData = vitrification ? vitrificationFollowup(id, data) : { title: `Manutenção: ${data.title}`, date: data.maintenanceDate || "", type: "Manutenção", notes: "Confirmar com o cliente o próximo cuidado." };
     statements.push(d.prepare("INSERT INTO workflow_records(id,kind,client_id,parent_id,status,data,created_at,updated_at) SELECT ?::text,'followup',?::int,?::text,'aberto',?::jsonb,?::text,?::text WHERE EXISTS(SELECT 1 FROM workflow_records WHERE id=?::text AND status='entregue') ON CONFLICT DO NOTHING").bind(vitrification ? `vitrification-${id}` : `followup-${id}`, cid, id, json(followupData), stamp, stamp, id));
   }
   await d.batch(statements);

@@ -49,8 +49,18 @@ export async function dataPost(request: Request) {
     if (p.table === "clients") {
       if (!clean(p.name)) return fail("Informe o nome do cliente.");
       const referredBy = Number(p.referredByClientId) || null;
+      const additionalVehicles = Array.isArray(p.additionalVehicles) ? p.additionalVehicles.map((item: unknown) => {
+        const value = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        return { title: clean(value.vehicle ?? value.title).slice(0,100), plate: clean(value.plate).slice(0,12).toUpperCase() };
+      }) : [];
+      if (additionalVehicles.length > 9 || additionalVehicles.some(vehicle => !vehicle.title)) return fail("Confira os veículos adicionais (máximo de 9).");
       if (referredBy && !await d.prepare("SELECT id FROM clients WHERE id=?").bind(referredBy).first()) return fail("Cliente indicador não encontrado.");
       const added = await d.prepare("INSERT INTO clients (name,phone,vehicle,plate,notes,address,referred_by_client_id) VALUES (?,?,?,?,?,?,?) RETURNING id").bind(clean(p.name), clean(p.phone), clean(p.vehicle), clean(p.plate).toUpperCase(), clean(p.notes), clean(p.address), referredBy).first<{ id: number }>();
+      if (added && additionalVehicles.length) {
+        const stamp = now();
+        await d.batch(additionalVehicles.map(vehicle => d.prepare("INSERT INTO workflow_records (id,kind,client_id,status,data,created_at,updated_at) VALUES (?,'vehicle',?,'aberto',?::jsonb,?,?)")
+          .bind(`vehicle-${crypto.randomUUID()}`, added.id, JSON.stringify(vehicle), stamp, stamp)));
+      }
       if (referredBy && added) await d.prepare("INSERT INTO referral_events (client_id,referred_client_id,event_type,description,created_at) VALUES (?,?, 'indicacao', ?, ?)").bind(referredBy, added.id, `Indicou ${clean(p.name)}`, now()).run();
     } else if (p.table === "referralEvents") {
       const clientId = Number(p.clientId), description = clean(p.description);

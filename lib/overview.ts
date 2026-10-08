@@ -15,20 +15,23 @@ type ClientBooking=HubBooking&{client_id:number};
 // the clock automatically when a newer service is completed.
 export function clientReturnAlerts(records:HubRecord[],bookings:ClientBooking[],today=dayInBrazil()):ClientReturnAlert[]{
   if(!validDay(today))return [];
-  const latest=new Map<number,string>();
-  const recordDay=(clientId:number|null,day:string|null)=>{
+  const latest=new Map<number,{day:string;allowed:boolean}>();
+  const recordDay=(clientId:number|null,day:string|null,allowed=true)=>{
     if(!clientId||!day||!validDay(day)||day>today)return;
-    if(!latest.has(clientId)||day>latest.get(clientId)!)latest.set(clientId,day);
+    const current=latest.get(clientId);
+    if(!current||day>current.day)latest.set(clientId,{day,allowed});
   };
   const orders=records.filter(r=>r.kind==='order');
-  for(const order of orders)recordDay(order.client_id,completedDay(order,bookings));
+  for(const order of orders)recordDay(order.client_id,completedDay(order,bookings),order.data.sendReminders!==false);
   const linked=new Set(orders.map(r=>Number(r.data.bookingId)).filter(Boolean));
   for(const booking of bookings){
     if(booking.status==='concluido'&&!linked.has(booking.id)){
       recordDay(booking.client_id,booking.start_at.slice(0,10));
     }
   }
-  return [...latest].flatMap(([clientId,lastServiceDay])=>{
+  return [...latest].flatMap(([clientId,latestService])=>{
+    if(!latestService.allowed)return [];
+    const lastServiceDay=latestService.day;
     const daysSinceService=Math.round((Date.parse(today+'T12:00:00Z')-Date.parse(lastServiceDay+'T12:00:00Z'))/86400000);
     if(daysSinceService<15)return [];
     const stage=daysSinceService>=30?30:15;
