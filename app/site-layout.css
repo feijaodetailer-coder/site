@@ -43,3 +43,5 @@
   .mobile-app-nav button span{font-size:9px}
   .site-content>.main,.customer-site main{padding-inline:12px}
 }
+
+@media(max-width:700px){.mobile-app-nav.public{grid-template-columns:repeat(3,minmax(0,1fr));padding-inline:max(18px,env(safe-area-inset-left)) max(18px,env(safe-area-inset-right))}.mobile-app-nav.public button span{font-size:11px}.mobile-app-nav.auth{display:none}}
