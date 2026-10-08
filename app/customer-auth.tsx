@@ -6,7 +6,8 @@ import { useState, type FormEvent } from "react";
 import { KeyRound, LogIn, UserRoundPlus } from "lucide-react";
 import "./customer-auth.css";
 
-type Profile = { name: string; phone: string; contactEmail: string; address: string; vehicle: string; plate: string };
+type VehicleInput = { vehicle: string; plate: string };
+type Profile = { name: string; phone: string; contactEmail: string; address: string; vehicles: VehicleInput[] };
 
 function loginEmail(phone: string) {
   let digits = phone.replace(/\D/g, "");
@@ -19,7 +20,7 @@ export default function CustomerAuth() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [profile, setProfile] = useState<Profile>({ name: "", phone: "", contactEmail: "", address: "", vehicle: "", plate: "" });
+  const [profile, setProfile] = useState<Profile>({ name: "", phone: "", contactEmail: "", address: "", vehicles: [{ vehicle: "", plate: "" }] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,7 +48,7 @@ export default function CustomerAuth() {
       }
       const sessionResponse = await apiFetch("/api/customer-auth", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, phone: mode === "register" ? profile.phone : phone, ...(mode === "register" ? profile : {}) }),
+        body: JSON.stringify({ mode, phone: mode === "register" ? profile.phone : phone, ...(mode === "register" ? { ...profile, vehicle: profile.vehicles[0]?.vehicle || "", plate: profile.vehicles[0]?.plate || "" } : {}) }),
       });
       const session = await sessionResponse.json() as { error?: string; possibleExistingHistory?: boolean };
       if (!sessionResponse.ok) { await supabase.auth.signOut().catch(() => {}); throw new Error(session.error || "Não foi possível concluir seu cadastro."); }
@@ -70,8 +71,15 @@ export default function CustomerAuth() {
       {mode === "register" && <>
         <label>Nome completo<input required autoComplete="name" maxLength={100} value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })}/></label>
         <label>WhatsApp com DDD<input required type="tel" autoComplete="tel" placeholder="(31) 99999-9999" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })}/></label>
-        <label>Veículo<input required maxLength={100} placeholder="Marca e modelo" value={profile.vehicle} onChange={e => setProfile({ ...profile, vehicle: e.target.value })}/></label>
-        <label>Placa <span className="customer-auth-optional">opcional</span><input maxLength={12} value={profile.plate} onChange={e => setProfile({ ...profile, plate: e.target.value.toUpperCase() })}/></label>
+        <div className="customer-auth-vehicles"><p>Seus veículos <span className="customer-auth-optional">Você pode cadastrar mais de um</span></p>
+          {profile.vehicles.map((vehicle, index) => <div className="customer-auth-vehicle" key={index}>
+            <label>Veículo {index + 1}<input required maxLength={100} placeholder="Marca e modelo" value={vehicle.vehicle} onChange={e => setProfile({ ...profile, vehicles: profile.vehicles.map((item, i) => i === index ? { ...item, vehicle: e.target.value } : item) })}/></label>
+            <label>Placa <span className="customer-auth-optional">opcional</span><input maxLength={12} value={vehicle.plate} onChange={e => setProfile({ ...profile, vehicles: profile.vehicles.map((item, i) => i === index ? { ...item, plate: e.target.value.toUpperCase() } : item) })}/></label>
+            {profile.vehicles.length > 1 && <button type="button" className="customer-auth-remove-vehicle" onClick={() => setProfile({ ...profile, vehicles: profile.vehicles.filter((_, i) => i !== index) })}>Remover veículo</button>}
+          </div>)}
+          {profile.vehicles.length < 10 && <button type="button" className="customer-auth-add-vehicle" onClick={() => setProfile({ ...profile, vehicles: [...profile.vehicles, { vehicle: "", plate: "" }] })}>+ Adicionar outro veículo</button>}
+        </div>
+        
         <label>E-mail <span className="customer-auth-optional">opcional</span><input type="email" autoComplete="email" maxLength={160} value={profile.contactEmail} onChange={e => setProfile({ ...profile, contactEmail: e.target.value })}/></label>
         <label>Endereço <span className="customer-auth-optional">opcional</span><input autoComplete="street-address" maxLength={240} value={profile.address} onChange={e => setProfile({ ...profile, address: e.target.value })}/></label>
       </>}
