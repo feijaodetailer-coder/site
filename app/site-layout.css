@@ -7,3 +7,39 @@
 @media(max-width:800px){.about-page .story-grid,.about-page .philosophy-top,.about-page .process-grid,.about-page .commitment,.about-page .hero-bottom{grid-template-columns:1fr;gap:18px}.about-page .principles{grid-template-columns:1fr}.customer-site .customer-hero{grid-template-columns:1fr}.customer-hero>img{max-height:230px;min-height:0}.customer-card{grid-template-columns:1fr}.card-image{height:220px;min-height:0}.customer-site .plan-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.site-sidebar{display:none}.site-shell{display:block}.site-mobile-bar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 20px;background:#050505;color:#fff;border-bottom:1px solid #292929;font-size:14px}.mobile-menu-button{display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;padding:6px 0}.site-content>.main,.customer-site main{padding:24px 16px 50px}.customer-site .top h1{font-size:25px}.customer-site .customer-hero{display:flex;border-radius:20px;min-height:0}.customer-hero>div{padding:25px}.customer-hero>img{height:190px;min-height:0}.customer-hero h2{font-size:27px}.hero-actions{display:flex}.customer-footer{padding:25px 20px}.about-page .hero,.about-page .section,.about-page .invitation{padding:24px}.about-page .hero h2{font-size:28px}.about-page h2{font-size:25px}.about-page .manifesto{flex-direction:column;gap:5px}.about-page .button{width:100%;justify-content:center}.customer-section-heading{scroll-margin-top:90px}.site-content .main{max-width:100%}}
 @media(prefers-reduced-motion:reduce){.site-shell *{scroll-behavior:auto;transition:none!important}}
+
+/* Navegação e proporções pensadas para uso com uma mão no celular. */
+.mobile-app-nav{display:none}
+@media(max-width:700px){
+  html{scroll-padding-top:72px;scroll-padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+  body{min-width:320px;overflow-x:hidden}
+  .site-shell{display:block;min-height:100svh;overflow-x:clip}
+  .site-content{min-width:0;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .site-mobile-bar{min-height:58px;padding:7px 16px;gap:12px}
+  .site-mobile-bar>span{font-size:15px;font-weight:750;letter-spacing:-.02em}
+  .site-mobile-bar [data-slot=sheet-trigger]{display:grid;place-items:center;width:44px;height:44px;border-radius:12px}
+  .site-content>.main,.customer-site main{width:100%;max-width:100%;padding:18px 14px 24px}
+  .site-content .top{align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  .site-content .top h1{font-size:24px;line-height:1.15}
+  .site-shell .section-head{align-items:flex-start;flex-wrap:wrap}
+  .site-shell .panel,.site-shell .ops-card{min-width:0;padding:16px;border-radius:15px}
+  .site-shell [data-slot=button]{min-height:44px}
+  .site-shell input:not([type=checkbox]):not([type=radio]),.site-shell select,.site-shell textarea{min-height:46px;font-size:16px}
+  .site-shell textarea{min-height:96px}
+  .site-shell table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  .mobile-app-nav{position:fixed;inset:auto 0 0;z-index:60;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch;min-height:64px;padding:5px 5px calc(5px + env(safe-area-inset-bottom));border-top:1px solid #e6e6e6;background:#ffffffed;color:#565656;backdrop-filter:blur(18px);box-shadow:0 -5px 22px #0000000b}
+  .mobile-app-nav button{display:flex;min-width:0;min-height:50px;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:12px;background:transparent;color:inherit;font:inherit;touch-action:manipulation}
+  .mobile-app-nav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:650;line-height:1.15}
+  .mobile-app-nav button svg{flex:none}
+  .mobile-app-nav button.active{background:#fff1f1;color:#c91f25}
+  .site-mobile-drawer{padding-bottom:env(safe-area-inset-bottom)}
+  .mobile-side{padding:42px 16px calc(24px + env(safe-area-inset-bottom))}
+  .site-shell .ops-dialog{width:calc(100vw - 20px)!important;max-width:560px!important;max-height:calc(100svh - 20px);padding:18px;border-radius:18px;overflow-y:auto}
+  .ops .ops-actions{gap:8px}
+  .ops .ops-actions>*{min-height:44px}
+}
+@media(max-width:380px){
+  .mobile-app-nav{grid-template-columns:repeat(5,minmax(0,1fr));padding-inline:3px}
+  .mobile-app-nav button span{font-size:9px}
+  .site-content>.main,.customer-site main{padding-inline:12px}
+}
