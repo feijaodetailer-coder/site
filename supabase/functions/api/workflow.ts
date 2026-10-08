@@ -98,8 +98,8 @@ export async function workflowPost(request: Request) {
       const stamp = now();
       const results = await d.batch([
         d.prepare("UPDATE workflow_records SET status='cancelado',version=version+1,updated_at=? WHERE id=? AND kind='order' AND version=? AND status<>'entregue'").bind(stamp, order.id, version),
-        ...(order.data.bookingId ? [d.prepare("UPDATE bookings SET status='cancelado' WHERE id=? AND status IN ('solicitado','agendado','em andamento')").bind(Number(order.data.bookingId))] : []),
-        audit(actor, "OS cancelada", order.id),
+        ...(order.data.bookingId ? [d.prepare("UPDATE bookings SET status='cancelado' WHERE id=? AND status IN ('solicitado','agendado','em andamento') AND EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND status='cancelado' AND updated_at=? AND version=?)").bind(Number(order.data.bookingId), order.id, stamp, version + 1)] : []),
+        d.prepare("INSERT INTO audit_log(actor,action,record_id,created_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND status='cancelado' AND updated_at=? AND version=?)").bind(actor, "OS cancelada", order.id, stamp, order.id, stamp, version + 1),
       ]);
       if (!results[0]?.count) throw Error("A OS foi alterada. Atualize e tente novamente.");
       return reply({ ok: true, id: order.id });
