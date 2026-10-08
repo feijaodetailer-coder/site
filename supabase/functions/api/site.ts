@@ -63,15 +63,22 @@ export async function customerAuthPost(request: Request) {
     let client = await d.prepare("SELECT id,name,phone,vehicle,plate,email FROM clients WHERE user_id=?").bind(userId).first<{ id: number; name: string; phone: string; vehicle: string; plate: string; email: string }>();
 
     if (mode === "register" && !client) {
-      const name = text(payload.name, 100), vehicle = text(payload.vehicle, 100), plate = text(payload.plate, 12).toUpperCase();
+      const name = text(payload.name, 100);
+      const vehiclesInput = Array.isArray(payload.vehicles) ? payload.vehicles : [{ vehicle: payload.vehicle, plate: payload.plate }];
+      if (vehiclesInput.length < 1 || vehiclesInput.length > 10) return reply({ error: "Cadastre entre 1 e 10 veículos." }, 400);
+      const vehicles = vehiclesInput.map((item: unknown) => {
+        const value = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        return { title: text(value.vehicle ?? value.title, 100), plate: text(value.plate, 12).toUpperCase() };
+      });
       const email = text(payload.contactEmail, 160), address = text(payload.address, 240);
-      if (!name || !vehicle || (email && !/^\S+@\S+\.\S+$/.test(email))) return reply({ error: "Preencha nome, veículo e um e-mail válido, se quiser informar." }, 400);
+      if (!name || vehicles.some(vehicle => !vehicle.title) || (email && !/^\\S+@\\S+\\.\\S+$/.test(email))) return reply({ error: "Preencha nome, ao menos um veículo e um e-mail válido, se quiser informar." }, 400);
+      const primary = vehicles[0];
       const created = await d.prepare("INSERT INTO clients (name,phone,vehicle,plate,notes,user_id,email,address) VALUES (?,?,?,?,?,?,?,?) RETURNING id,name,phone,vehicle,plate,email")
-        .bind(name, phone.phone, vehicle, plate, "", userId, email, address).first<{ id: number; name: string; phone: string; vehicle: string; plate: string; email: string }>();
+        .bind(name, phone.phone, primary.title, primary.plate, "", userId, email, address).first<{ id: number; name: string; phone: string; vehicle: string; plate: string; email: string }>();
       if (!created) throw new Error("Não foi possível criar seu cadastro.");
       const stamp = now();
-      await d.prepare("INSERT INTO workflow_records (id,kind,client_id,status,data,created_at,updated_at) VALUES (?,'vehicle',?,'aberto',?::jsonb,?,?)")
-        .bind(`vehicle-${crypto.randomUUID()}`, created.id, json({ title: vehicle, plate }), stamp, stamp).run();
+      await d.batch(vehicles.map(vehicle => d.prepare("INSERT INTO workflow_records (id,kind,client_id,status,data,created_at,updated_at) VALUES (?,'vehicle',?,'aberto',?::jsonb,?,?)")
+        .bind(`vehicle-${crypto.randomUUID()}`, created.id, json(vehicle), stamp, stamp)));
       client = created;
     }
     if (!client) return denied();
