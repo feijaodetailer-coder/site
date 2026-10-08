@@ -71,7 +71,7 @@ export async function customerAuthPost(request: Request) {
         return { title: text(value.vehicle ?? value.title, 100), plate: text(value.plate, 12).toUpperCase() };
       });
       const email = text(payload.contactEmail, 160), address = text(payload.address, 240);
-      if (!name || vehicles.some(vehicle => !vehicle.title) || (email && !/^\\S+@\\S+\\.\\S+$/.test(email))) return reply({ error: "Preencha nome, ao menos um veículo e um e-mail válido, se quiser informar." }, 400);
+      if (!name || vehicles.some(vehicle => !vehicle.title) || (email && !/^\S+@\S+\.\S+$/.test(email))) return reply({ error: "Preencha nome, ao menos um veículo e um e-mail válido, se quiser informar." }, 400);
       const primary = vehicles[0];
       const created = await d.prepare("INSERT INTO clients (name,phone,vehicle,plate,notes,user_id,email,address) VALUES (?,?,?,?,?,?,?,?) RETURNING id,name,phone,vehicle,plate,email")
         .bind(name, phone.phone, primary.title, primary.plate, "", userId, email, address).first<{ id: number; name: string; phone: string; vehicle: string; plate: string; email: string }>();
