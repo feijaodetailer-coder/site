@@ -14,7 +14,7 @@ export function completedDay(order:HubRecord,bookings:HubBooking[]){
  const day=booking?.start_at.slice(0,10);return validDay(day)?day:null;
 }
 export function serviceHistory(records:HubRecord[],bookings:HubBooking[]){
- const orders=records.filter(r=>r.kind==='order'&&r.status==='entregue').map(r=>({...r,completedDay:completedDay(r,bookings)}));
+ const orders=records.filter(r=>r.kind==='order'&&r.status==='entregue'&&r.data.sendReminders!==false).map(r=>({...r,completedDay:completedDay(r,bookings)}));
  const linked=new Set(records.filter(r=>r.kind==='order').map(r=>Number(r.data.bookingId)));
  const legacy=bookings.filter(b=>b.status==='concluido'&&!linked.has(b.id)).map(b=>({id:`legacy-booking-${b.id}`,kind:'order',client_id:null,parent_id:null,status:'entregue',version:0,created_at:b.start_at,data:{title:b.service_name,total:b.amount,paid:b.paid,bookingId:b.id,items:[{name:b.service_name,qty:1,price:b.amount}]},completedDay:validDay(b.start_at.slice(0,10))?b.start_at.slice(0,10):null} as HubRecord&{completedDay:string|null}));
  return [...orders,...legacy].sort((a,b)=>(b.completedDay||'').localeCompare(a.completedDay||''));
