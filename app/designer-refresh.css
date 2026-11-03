@@ -138,8 +138,8 @@
 .client-home-feature-copy>span{color:#727c6c}
 .client-home-feature-copy p,.client-home-stats small,.client-home-next p:last-child,.client-home-recommendation p:last-of-type{color:#6b7468}
 .client-home .ui-button{background:#a93138;border-color:#a93138;border-radius:9px;color:white}
-.client-home-stats article,.client-home-next,.client-home-recommendation,.client-home-action-grid button,.client-home-empty,.client-home-account-key,.client-home-state{background:#fff;border-color:#e2e4da;color:#29312b;box-shadow:0 3px 12px #26362904}
-.client-home-stats article>span{color:#69736a}.client-home-stats article>span svg,.client-home-action-grid button>svg:first-child{color:#9c5550}
+.client-home-stats button,.client-home-next,.client-home-recommendation,.client-home-action-grid button,.client-home-empty,.client-home-account-key,.client-home-state{background:#fff;border-color:#e2e4da;color:#29312b;box-shadow:0 3px 12px #26362904}
+.client-home-stats button>span{color:#69736a}.client-home-stats button>span svg,.client-home-action-grid button>svg:first-child{color:#9c5550}
 .client-home-recommendation{background:#f3f1e9;border-color:#e5e1d4}
 .client-home-action-grid button:hover{border-color:#c1c9b8;background:#f6f7f1}
 .client-home-action-grid small,.client-home-loading{color:#6b7468}
@@ -148,7 +148,7 @@
 .vehicle-hub .hub-vehicle{background:#eff1e9;color:#29312b;border:1px solid #e2e4da;border-top:3px solid #a93138;border-radius:15px}
 .vehicle-hub .hub-vehicle p{color:#66715f}
 .vehicle-hub .hub-vehicle-icon{background:#fff;border:1px solid #e2e4da;color:#a34340;border-radius:13px}
-.vehicle-hub .hub-summary>div,.vehicle-hub .hub-history-card,.vehicle-hub .hub-active,.vehicle-hub .hub-notice,.vehicle-hub .hub-empty,.vehicle-hub .hub-offer,.vehicle-hub .hub-files>a{background:#fff;border-color:#e2e4da;border-radius:13px;box-shadow:0 3px 13px #26362905;color:#29312b}
+.vehicle-hub .hub-summary>button,.vehicle-hub .hub-history-card,.vehicle-hub .hub-active,.vehicle-hub .hub-notice,.vehicle-hub .hub-empty,.vehicle-hub .hub-offer,.vehicle-hub .hub-files>a{background:#fff;border-color:#e2e4da;border-radius:13px;box-shadow:0 3px 13px #26362905;color:#29312b}
 .vehicle-hub .hub-summary svg,.vehicle-hub .hub-count,.vehicle-hub .hub-offer-label{color:#9d4140}
 .vehicle-hub .hub-tabs{border-color:#e2e4da}
 .vehicle-hub .hub-tabs [role=tab][data-state=active]{color:#97343a;box-shadow:inset 0 -3px #a93138!important}

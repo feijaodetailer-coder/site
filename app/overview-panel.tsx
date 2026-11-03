@@ -1,5 +1,9 @@
+"use client";
+import {useState} from "react";
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from "@/components/ui/dialog";
+import {Input} from "@/components/ui/input";
 import {ArrowUpRight,Bell,CalendarDays,ChartNoAxesCombined,ClipboardList,Clock3,FileText,Users,Wallet} from 'lucide-react';
-import {summarize,type FinanceData} from '../lib/finance';
+import {cash,summarize,type FinanceData} from '../lib/finance';
 import {completedDay,dayInBrazil,type HubRecord} from '../lib/vehicle-hub';
 import {clientReturnAlerts} from '../lib/overview';
 import './overview.css';
@@ -14,6 +18,8 @@ const money=(value:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',curr
 const day=(value:string)=>new Date(value+'T12:00:00').toLocaleDateString('pt-BR');
 
 export default function OverviewPanel({data,finance,navigate}:{data:OverviewData;finance:FinanceData|null;navigate:(tab:string)=>void}){
+  const [selected,setSelected]=useState<number|null>(null);
+  const [search,setSearch]=useState('');
   const today=dayInBrazil();
   const month=today.slice(0,7)+'-01';
   const all=finance?summarize(finance,'',''):null;
@@ -41,9 +47,36 @@ export default function OverviewPanel({data,finance,navigate}:{data:OverviewData
     {label:'Faturamento no mês',value:current?money(current.income):'—',detail:'Entradas recebidas neste mês',icon:Wallet},
     {label:'Orçamentos pendentes',value:String(data.records.filter(r=>r.kind==='quote'&&['solicitado','enviado'].includes(r.status)).length),detail:'Aguardando análise ou resposta',icon:FileText},
   ];
+  type DetailRow={id:string;title:string;description:string;amount?:number};
+  const customer=(id:number|null)=>id?clientById.get(id)?.name||'Cliente não encontrado':'Sem cliente vinculado';
+  const orderRow=(r:HubRecord):DetailRow=>({id:r.id,title:String(r.data.title||'Atendimento'),description:`${customer(r.client_id)} · ${r.status} · ${completedDay(r,data.bookings)?day(completedDay(r,data.bookings)!):'Sem data de conclusão'}`,amount:Number(r.data.total||0)});
+  const bookingRow=(b:OverviewData['bookings'][number]):DetailRow=>({id:`booking:${b.id}`,title:b.service_name,description:`${customer(b.client_id)} · ${b.status} · ${new Date(b.start_at).toLocaleString('pt-BR')}`,amount:b.amount});
+  const received=(from=''):DetailRow[] => (finance?.transactions||[]).filter(t=>t.kind==='entrada'&&cash(t)>0&&(!from||((t.paidDate||t.date)>=from&&(t.paidDate||t.date)<=today))).map(t=>({id:String(t.id),title:t.description,description:`${day(t.paidDate||t.date)} · ${t.category} · ${t.payment_method} · ${t.financial_status==='parcial'?'Recebimento parcial':'Recebido'}`,amount:cash(t)}));
+  const completedRows=[...completed.filter(r=>!!completedDay(r,data.bookings)).map(orderRow),...data.bookings.filter(b=>b.status==='concluido'&&!linkedBookings.has(b.id)).map(bookingRow)];
+  const details:DetailRow[][]=[
+    received(),
+    completedRows,
+    orders.filter(r=>!['entregue','cancelado'].includes(r.status)).map(orderRow),
+    todayBookings.map(bookingRow),
+    [...completed.filter(r=>completedDay(r,data.bookings)===today).map(orderRow),...data.bookings.filter(b=>b.status==='concluido'&&!linkedBookings.has(b.id)&&b.start_at.slice(0,10)===today).map(bookingRow)],
+    [...completedClients].map(id=>({id:String(id),title:customer(id),description:clientById.get(id)?.phone||'Telefone não informado'})),
+    received(month),
+    data.records.filter(r=>r.kind==='quote'&&['solicitado','enviado'].includes(r.status)).map(orderRow),
+  ];
+  const destinations=['financeiro','orders','orders','schedule','orders','clientes','financeiro','quotes'];
+  const selectedCard=selected===null?null:cards[selected];
+  const selectedRows=selected===null?[]:details[selected];
+  const matchingRows=selectedRows.filter(row=>`${row.title} ${row.description}`.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR')));
   return <div className="overview-clean">
     <div className="overview-heading"><div><h2>Empresa em um olhar</h2><p>Indicadores atualizados com os registros de serviços, agenda e financeiro.</p></div><span>{day(today)}</span></div>
-    <div className="overview-metrics">{cards.map(({label,value,detail,icon:Icon})=><article className="overview-metric" key={label}><div className="overview-metric-top"><span>{label}</span><Icon size={19} aria-hidden="true"/></div><strong>{value}</strong><small>{detail}</small></article>)}</div>
+    <div className="overview-metrics">{cards.map(({label,value,detail,icon:Icon},index)=><button type="button" className="overview-metric" key={label} onClick={()=>{setSelected(index);setSearch('')}} aria-label={`Ver detalhes: ${label}`}><div className="overview-metric-top"><span>{label}</span><Icon size={19} aria-hidden="true"/></div><strong>{value}</strong><small>{detail}</small><span className="overview-card-action">Ver detalhes <ArrowUpRight size={14}/></span></button>)}</div>
+    <Dialog open={selected!==null} onOpenChange={open=>{if(!open)setSelected(null)}}><DialogContent className="overview-detail-dialog"><DialogHeader><DialogTitle>{selectedCard?.label}</DialogTitle><DialogDescription>{selectedCard?.detail}. {selectedRows.length} registro(s).</DialogDescription></DialogHeader>
+      <p className="overview-detail-total">{selectedCard?.value}</p>
+      {selected===1&&<p>A média considera os valores dos atendimentos abaixo, sem duplicar agendamentos vinculados a uma OS.</p>}
+      <Input aria-label="Buscar nos detalhes" placeholder="Buscar por descrição, cliente ou data" value={search} onChange={e=>setSearch(e.target.value)}/>
+      <div className="overview-detail-list">{matchingRows.length?<ul>{matchingRows.map(row=><li key={row.id}><div><strong>{row.title}</strong><small>{row.description}</small></div>{row.amount!==undefined&&<span>{money(row.amount)}</span>}</li>)}</ul>:<p>Nenhum registro encontrado{search?' para esta busca':' neste período'}.</p>}</div>
+      <button type="button" className="overview-link" onClick={()=>{if(selected!==null)navigate(destinations[selected]);setSelected(null)}}>Abrir área de gestão <ArrowUpRight size={16}/></button>
+    </DialogContent></Dialog>
     <div className="overview-lower">
       <section className="overview-panel"><div className="overview-panel-heading"><div><h2><Bell size={20} aria-hidden="true"/> Retorno de clientes</h2><p>Um aviso por cliente, contado desde o último serviço concluído.</p></div><span className="overview-counter">{alerts.length}</span></div>
         {!alerts.length?<p className="overview-empty">Nenhum cliente atingiu 15 dias sem novo serviço.</p>:<div className="overview-alerts">{alerts.map(alert=>{const client=clientById.get(alert.clientId);return <article className="overview-alert" key={alert.id}><div><span className={`overview-stage ${alert.stage===30?'eligible':''}`}>{alert.stage===30?'30 dias · oferta de 10%':'15 dias · lembrete'}</span><h3>{client?.name||'Cliente'} <span>· {alert.daysSinceService} dias</span></h3><p>Último serviço concluído em {day(alert.lastServiceDay)}.</p></div><button type="button" className="overview-link" onClick={()=>navigate('messages')}>Ver mensagem <ArrowUpRight size={16}/></button></article>})}</div>}

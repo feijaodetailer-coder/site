@@ -1,4 +1,5 @@
 "use client";
+import { SiteImage } from "@/components/site-image";
 import { withBase } from "@/lib/base";
 import { apiFetch } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
@@ -58,7 +59,7 @@ export default function CustomerAuth() {
     } finally { setBusy(false); }
   };
 
-  return <main className="main customer-auth-page"><div className="designer-auth-welcome"><p className="customer-auth-eyebrow">SEU ESPAÇO NA FEIJÃO DETAILER</p><h2>O cuidado continua<br/><em>por aqui.</em></h2><p>Seus veículos, próximos agendamentos e serviços. Tudo reunido para você acompanhar com tranquilidade.</p><img src={withBase("/service-images/limpeza-editorial.webp")} alt="Detalhamento automotivo com atenção ao acabamento"/></div><section className="customer-auth-card" aria-labelledby="customer-auth-title">
+  return <main className="main customer-auth-page"><div className="designer-auth-welcome"><p className="customer-auth-eyebrow">SEU ESPAÇO NA FEIJÃO DETAILER</p><h2>O cuidado continua<br/><em>por aqui.</em></h2><p>Seus veículos, próximos agendamentos e serviços. Tudo reunido para você acompanhar com tranquilidade.</p><SiteImage src={withBase("/service-images/limpeza-editorial.webp")} alt="Detalhamento automotivo com atenção ao acabamento"/></div><section className="customer-auth-card" aria-labelledby="customer-auth-title">
     <div className="customer-auth-mark"><KeyRound size={20}/></div>
     <p className="customer-auth-eyebrow">FEIJÃO DETAILER</p>
     <h1 id="customer-auth-title">{mode === "login" ? "Acesse sua área" : "Crie seu acesso"}</h1>

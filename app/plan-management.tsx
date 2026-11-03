@@ -1,4 +1,5 @@
 "use client";
+import {useState} from "react";
 
 import { CheckCircle2, Clock3, ExternalLink, ShieldCheck, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ const money=(amount:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",cur
 const date=(value:string)=>new Date(value).toLocaleDateString("pt-BR",{dateStyle:"short"});
 
 export default function PlanManagement({plans,clients,services,saving,onAction}:{plans:Plan[];clients:Client[];services:Service[];saving:boolean;onAction:(id:number,action:"authorize"|"reject")=>Promise<void>}){
+  const [activeTab,setActiveTab]=useState('pendentes');
   const pending=plans.filter(p=>p.status==="pendente");
   const active=plans.filter(p=>p.status==="ativo"&&(!p.expires_at||p.expires_at>new Date().toISOString()));
   const history=plans.filter(p=>p.status==="recusado"||(p.status==="ativo"&&Boolean(p.expires_at&&p.expires_at<=new Date().toISOString())));
@@ -25,7 +27,7 @@ export default function PlanManagement({plans,clients,services,saving,onAction}:
     </>}</div>
   </article>};
   return <div className="plan-management"><div className="plan-management-lead"><div><span className="eyebrow">ASSINATURAS</span><h2>Gerenciamento de planos</h2><p>Confira o Pix antes de autorizar. Pedidos enviados pelos clientes ficam pendentes até sua decisão.</p></div><ShieldCheck size={38}/></div>
-    <div className="plan-admin-stats"><div><Clock3 size={19}/><strong>{pending.length}</strong><span>Pendentes</span></div><div><CheckCircle2 size={19}/><strong>{active.length}</strong><span>Ativos</span></div><div><XCircle size={19}/><strong>{history.length}</strong><span>Histórico</span></div></div>
-    <Tabs defaultValue="pendentes"><TabsList><TabsTrigger value="pendentes">Pendentes ({pending.length})</TabsTrigger><TabsTrigger value="ativos">Ativos ({active.length})</TabsTrigger><TabsTrigger value="historico">Histórico</TabsTrigger></TabsList><TabsContent value="pendentes"><div className="plan-admin-list">{pending.length?pending.map(card):<p className="empty">Nenhum Pix aguardando conferência.</p>}</div></TabsContent><TabsContent value="ativos"><div className="plan-admin-list">{active.length?active.map(card):<p className="empty">Nenhum plano ativo.</p>}</div></TabsContent><TabsContent value="historico"><div className="plan-admin-list">{history.length?history.map(card):<p className="empty">Ainda não há histórico.</p>}</div></TabsContent></Tabs>
+    <div className="plan-admin-stats"><button type="button" onClick={()=>setActiveTab('pendentes')}><Clock3 size={19}/><strong>{pending.length}</strong><span>Pendentes</span></button><button type="button" onClick={()=>setActiveTab('ativos')}><CheckCircle2 size={19}/><strong>{active.length}</strong><span>Ativos</span></button><button type="button" onClick={()=>setActiveTab('historico')}><XCircle size={19}/><strong>{history.length}</strong><span>Histórico</span></button></div>
+    <Tabs value={activeTab} onValueChange={setActiveTab}><TabsList><TabsTrigger value="pendentes">Pendentes ({pending.length})</TabsTrigger><TabsTrigger value="ativos">Ativos ({active.length})</TabsTrigger><TabsTrigger value="historico">Histórico</TabsTrigger></TabsList><TabsContent value="pendentes"><div className="plan-admin-list">{pending.length?pending.map(card):<p className="empty">Nenhum Pix aguardando conferência.</p>}</div></TabsContent><TabsContent value="ativos"><div className="plan-admin-list">{active.length?active.map(card):<p className="empty">Nenhum plano ativo.</p>}</div></TabsContent><TabsContent value="historico"><div className="plan-admin-list">{history.length?history.map(card):<p className="empty">Ainda não há histórico.</p>}</div></TabsContent></Tabs>
   </div>;
 }

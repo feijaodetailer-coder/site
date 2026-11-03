@@ -7,7 +7,7 @@ import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from "@
 import "./agenda-calendar.css";
 
 type Item={id:number;client_id:number;service_id:number;service_name:string;start_at:string;duration:number;status:string;amount:number;notes?:string};
-type Client={id:number;name:string;phone?:string;vehicle?:string;plate?:string;user_id?:string};
+type Client={id:number;name:string;phone?:string;vehicle?:string;plate?:string;user_id?:string|null};
 type Service={id:number;name:string;duration:number;booking_duration:number;category?:string};
 type Block={id:string;status:string;data:{title?:string;start?:string;end?:string}};
 type Props={bookings:Item[];clients:Client[];services:Service[];blocks:Block[];onRefresh:()=>Promise<void>;onBlock:()=>void;onEditBlock:(block:Block)=>void};

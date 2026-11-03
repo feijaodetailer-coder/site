@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/api";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { catalogTabs, defaultSiteDisplay, type SiteDisplay } from "../lib/site-display";
 import { serviceCategories } from "../lib/service-categories";
@@ -17,17 +17,16 @@ export default function SiteDisplaySettings({ services, catalogLoading }: { serv
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  async function load() {
-    setLoading(true); setError(""); setNotice("");
-    try {
-      const response = await apiFetch("/api/site-settings", { cache: "no-store" });
+  const load = useCallback(() => apiFetch("/api/site-settings", { cache: "no-store" })
+    .then(async response => {
       const result = await response.json() as { settings: SiteDisplay; version: number; error?: string };
       if (!response.ok) throw new Error(result.error);
       setSettings(result.settings); setVersion(result.version); setDirty(false); setLoaded(true);
-    } catch (error) { setError(error instanceof Error ? error.message : "Não foi possível carregar."); }
-    finally { setLoading(false); }
-  }
-  useEffect(() => { void load(); }, []);
+    })
+    .catch(error => setError(error instanceof Error ? error.message : "Não foi possível carregar."))
+    .finally(() => setLoading(false)), []);
+  const refresh = () => { setLoading(true); setError(""); setNotice(""); void load(); };
+  useEffect(() => { void load(); }, [load]);
   const change = (next: SiteDisplay) => { setSettings(next); setDirty(true); setNotice(""); };
   const toggle = (key: "hiddenTabs" | "hiddenCategories" | "hiddenEditorialServices", id: string, visible: boolean) =>
     change({ ...settings, [key]: visible ? settings[key].filter(item => item !== id) : [...settings[key], id] });
@@ -59,6 +58,6 @@ export default function SiteDisplaySettings({ services, catalogLoading }: { serv
       <details className="site-visibility-section"><summary>Serviços para agendamento e pacotes</summary><p>Escolha quais opções do catálogo de preços podem receber novas solicitações pelo site.</p>{catalogLoading ? <p>Carregando serviços...</p> : [...new Set(services.filter(service => service.category !== "Planos mensais").map(service => service.category))].map(category => <details className="site-visibility-category" key={category}><summary>{category}</summary><div className="site-visibility-grid">{offerList(services.filter(service => service.category === category))}</div></details>)}</details>
       <details className="site-visibility-section"><summary>Planos mensais disponíveis</summary><p>Planos ocultos deixam de receber novas solicitações. Assinaturas existentes continuam disponíveis na gestão e no histórico do cliente.</p><div className="site-visibility-grid">{catalogLoading ? <p>Carregando planos...</p> : offerList(services.filter(service => service.category === "Planos mensais"))}</div></details>
     </fieldset>
-    <div className="site-settings-actions"><Button disabled={loading || saving || !loaded || !dirty} onClick={save}>{saving ? "Salvando..." : "Salvar configurações"}</Button><Button variant="outline" disabled={loading || saving} onClick={load}>Recarregar configurações</Button>{dirty && <span>Alterações ainda não salvas</span>}</div>
+    <div className="site-settings-actions"><Button disabled={loading || saving || !loaded || !dirty} onClick={save}>{saving ? "Salvando..." : "Salvar configurações"}</Button><Button variant="outline" disabled={loading || saving} onClick={refresh}>Recarregar configurações</Button>{dirty && <span>Alterações ainda não salvas</span>}</div>
   </section>;
 }

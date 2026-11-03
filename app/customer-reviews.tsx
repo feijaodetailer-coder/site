@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { RefreshCw, Send, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import "./customer-reviews.css";
 
-type RecordRow = { id: string; kind: string; status: string; data: Record<string, any>; created_at: string };
+type RecordRow = { id: string; kind: string; status: string; data: { items?: { name?: string }[]; completedDate?: string; serviceName?: string; rating?: number }; created_at: string };
 type Service = { id: number; name: string };
 type ReviewData = { signedIn: boolean; records: RecordRow[]; services: Service[] };
 type ReviewForm = { rating: number; comment: string };
@@ -19,9 +19,8 @@ export default function CustomerReviews() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const load = () => {
-    setLoading(true);
-    apiFetch("/api/workflow", { cache: "no-store" })
+  const load = useCallback(() => {
+    return apiFetch("/api/workflow", { cache: "no-store" })
       .then(async response => {
         const result = await response.json() as ReviewData & { error?: string };
         if (!response.ok || !result.signedIn) throw new Error(result.error || "Entre na sua conta para avaliar seus serviços.");
@@ -30,9 +29,10 @@ export default function CustomerReviews() {
       })
       .catch(reason => setError(reason instanceof Error ? reason.message : "Não foi possível carregar suas avaliações."))
       .finally(() => setLoading(false));
-  };
+  }, []);
+  const refresh = () => { setLoading(true); void load(); };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
   const completedOrders = useMemo(() => (data?.records || []).filter(row => row.kind === "order" && row.status === "entregue"), [data]);
   const published = useMemo(() => new Set((data?.records || []).filter(row => row.kind === "review").map(row => row.id)), [data]);
@@ -55,7 +55,7 @@ export default function CustomerReviews() {
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "Não foi possível publicar sua avaliação.");
       setNotice("Sua avaliação foi publicada e já pode aparecer na página inicial.");
-      load();
+      refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Não foi possível publicar sua avaliação.");
     } finally { setSending(""); }
@@ -63,7 +63,7 @@ export default function CustomerReviews() {
 
   return <main className="main customer-reviews">
     <header className="customer-reviews-head"><p className="customer-reviews-eyebrow">SUA EXPERIÊNCIA</p><h1>Avaliações</h1><p>Avalie cada serviço depois que ele for concluído. Sua opinião é publicada automaticamente.</p></header>
-    {error && <section role="alert" className="customer-reviews-message is-error">{error}<Button variant="outline" onClick={load}><RefreshCw size={15}/> Tentar novamente</Button></section>}
+    {error && <section role="alert" className="customer-reviews-message is-error">{error}<Button variant="outline" onClick={refresh}><RefreshCw size={15}/> Tentar novamente</Button></section>}
     {notice && <p role="status" className="customer-reviews-message is-success">{notice}</p>}
     {loading ? <p role="status" className="customer-reviews-empty">Carregando seus serviços...</p> : eligible.length ? <div className="customer-review-list">{eligible.map(item => {
       const form = forms[item.id] || { rating: 5, comment: "" };

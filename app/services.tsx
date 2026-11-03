@@ -1,4 +1,5 @@
 "use client";
+import { SiteImage } from "@/components/site-image";
 import { withBase } from "@/lib/base";
 import { apiFetch } from "@/lib/api";
 
@@ -17,10 +18,6 @@ import VisitInfo from "./visit-info";
 import { serviceCategories as categories } from "../lib/service-categories";
 import { catalogTabs, type SiteDisplay } from "../lib/site-display";
 
-
-const whatsapp = (items: string[], custom = false) => "https://wa.me/5531993444280?text=" + encodeURIComponent(custom
-  ? `Olá! Vim pelo site da Feijão Detailer e gostaria de um orçamento para um pacote personalizado com estes serviços:\n\n${items.map(name => `• ${name}`).join("\n")}\n\nPodemos conversar sobre os valores e a disponibilidade?`
-  : `Olá! Vim pelo site da Feijão Detailer e tenho interesse no serviço: ${items[0]}. Gostaria de saber mais sobre os valores e a disponibilidade.`);
 
 const serviceImage = (name: string) => {
   const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
@@ -69,7 +66,6 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   const visibleTabs = catalogTabs.filter(tab => siteSettings && !siteSettings.hiddenTabs.includes(tab.id));
   const activeView = view === "agendar" && serviceBookingOpen ? "agendar" : visibleTabs.some(tab => tab.id === view) ? view : visibleTabs[0]?.id ?? "";
   const tabVisible = (id: string) => visibleTabs.some(tab => tab.id === id);
-  const [popular, setPopular] = useState<Array<{ service_name: string; clicks: number }>>([]);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [catalogServices,setCatalogServices]=useState<PricedService[]>([]);
   const motorcycleServices = [...new Set(catalogServices.filter(service => /moto/i.test(service.name) || /moto/i.test(service.category)).map(service => service.name))];
@@ -80,15 +76,14 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [showServicePrice,setShowServicePrice]=useState(false);
   const [bookingServiceId,setBookingServiceId]=useState<number|null>(null);
-  const toggle = (name: string) => setSelected(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
   useEffect(() => {
     let active = true;
-    apiFetch("/api/public", { cache: "no-store" }).then(response => response.ok ? response.json() as Promise<{ popular?: Array<{ service_name: string; clicks: number }>; reviews?:PublicReview[]; services?:PricedService[]; settings?:SiteDisplay }> : null)
-      .then(data => { if (active && Array.isArray(data?.popular)) setPopular(data.popular);if(active&&Array.isArray(data?.reviews))setReviews(data.reviews);if(active&&Array.isArray(data?.services))setCatalogServices(data.services); if(active){if(data?.settings)setSiteSettings(data.settings);else setCatalogError(true);} }).catch(() => {if(active)setCatalogError(true);});
+    apiFetch("/api/public", { cache: "no-store" }).then(response => response.ok ? response.json() as Promise<{ reviews?:PublicReview[]; services?:PricedService[]; settings?:SiteDisplay }> : null)
+      .then(data => { if(active&&Array.isArray(data?.reviews))setReviews(data.reviews);if(active&&Array.isArray(data?.services))setCatalogServices(data.services); if(active){if(data?.settings)setSiteSettings(data.settings);else setCatalogError(true);} }).catch(() => {if(active)setCatalogError(true);});
     return () => { active = false; };
   }, []);
   const featured = vehicleType === "moto" ? motorcycleServices.slice(0, 3) : fallbackFeatured.filter(name => allServices.includes(name));
-  const filtered = useMemo(() => allServices.filter(name => name.toLocaleLowerCase("pt-BR").includes(query.trim().toLocaleLowerCase("pt-BR"))), [query, siteSettings, vehicleType]);
+  const filtered = allServices.filter(name => name.toLocaleLowerCase("pt-BR").includes(query.trim().toLocaleLowerCase("pt-BR")));
   const packageServices=useMemo(()=>catalogServices.filter(service=>!["Pacotes","Planos mensais"].includes(service.category) && (vehicleType === "moto" ? /moto/i.test(service.name) || /moto/i.test(service.category) : !/moto/i.test(service.name) && !/moto/i.test(service.category))),[catalogServices,vehicleType]);
   const packageCategories=useMemo(()=>[...new Set(packageServices.map(service=>service.category))].map(category=>({category,items:packageServices.filter(service=>service.category===category)})),[packageServices]);
   const selectedOffers=packageServices.filter(service=>selected.includes(service.name));
@@ -111,7 +106,7 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   return <SiteShell current="services"><main className="services-page services-page-compact customer-area-catalog">
     <header className="services-heading services-heading-compact designer-hero">
       <div className="designer-hero-copy"><p className="services-eyebrow">FEIJÃO DETAILER · ESTÉTICA AUTOMOTIVA</p><h1>Seu carro merece<br/>esse <em>cuidado.</em></h1><p>Do primeiro brilho à proteção que fica. Encontre o cuidado ideal para o seu veículo, com atenção a cada detalhe.</p><div className="designer-hero-detail"><span/>Explore os serviços. Escolha no seu tempo.</div></div>
-      <div className="designer-hero-photo"><img src={withBase("/service-images/limpeza-editorial.webp")} alt="Cuidado detalhado com a limpeza da carroceria de um veículo" fetchPriority="high"/><span className="designer-photo-caption">CUIDADO EM CADA DETALHE <ArrowUpRight size={20}/></span></div>
+      <div className="designer-hero-photo"><SiteImage src={withBase("/service-images/limpeza-editorial.webp")} alt="Cuidado detalhado com a limpeza da carroceria de um veículo" fetchPriority="high"/><span className="designer-photo-caption">CUIDADO EM CADA DETALHE <ArrowUpRight size={20}/></span></div>
     </header>
     <div className="service-vehicle-selector" role="group" aria-label="Escolha o tipo de veículo" style={{ display: "flex", justifyContent: "center", gap: 8, margin: "1.25rem 0" }}>
       {(["carro", "moto"] as const).map(type => <button key={type} type="button" aria-pressed={vehicleType === type} onClick={() => { setVehicleType(type); setSelected([]); setExpandedCategories([]); setExpandedPackageCategories([]); setQuery(""); }} style={{ border: vehicleType === type ? "1px solid #c8101e" : "1px solid #d5d5d5", borderRadius: 999, padding: "0.65rem 1.25rem", background: vehicleType === type ? "#c8101e" : "#fff", color: vehicleType === type ? "#fff" : "#222", fontWeight: 600, cursor: "pointer" }}>{type === "carro" ? "Carro" : "Moto"}</button>)}
@@ -123,7 +118,7 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
       <TabsContent value="agendar"><div className="catalog-booking-intro"><div><p className="services-eyebrow">AGENDA ONLINE</p><h2>Escolha seu cuidado e reserve a chegada</h2><p>Veja os horários livres para o seu serviço. A previsão de conclusão e o valor inicial aparecem antes da confirmação.</p></div></div><CustomerPage key={bookingServiceId??"catalog"} mode="services" embedded initialServiceId={bookingServiceId??undefined}/></TabsContent>
       <TabsContent value="destaques">
         <section className="service-featured" aria-labelledby="featured-services-title"><div className="service-featured-heading"><div><p className="services-eyebrow">{"SELEÇÃO FEIJÃO DETAILER"}</p><h2 id="featured-services-title">{"Cuidados que despertam interesse"}</h2><p>Conheça os detalhes de cada serviço e descubra o que combina com seu veículo.</p></div><span className="service-featured-count">{String(featured.length).padStart(2, "0")} opções</span></div>{!featured.length && <p className="services-empty">{vehicleType === "moto" ? "A lista de serviços para motos está sendo preparada. Quando os serviços e valores forem cadastrados, eles aparecerão aqui." : "Não há serviços disponíveis nesta seleção."}</p>}
-          <div className="service-featured-grid">{featured.map((name, index) => <button className="service-featured-card" key={name} onClick={() => openService(name)}><span className="designer-service-image"><img src={serviceImage(name)} alt="" loading="lazy"/><span className="service-featured-number">0{index + 1}</span></span><span className="service-featured-copy"><strong>{name}</strong><small><Clock3 size={14}/>{serviceDetails[name]?.duration ? `Estimativa · ${serviceDetails[name].duration}` : "Tempo sob avaliação"}</small></span><span className="service-featured-link">Conhecer serviço <ArrowUpRight size={16}/></span></button>)}</div>
+          <div className="service-featured-grid">{featured.map((name, index) => <button className="service-featured-card" key={name} onClick={() => openService(name)}><span className="designer-service-image"><SiteImage src={serviceImage(name)} alt="" loading="lazy"/><span className="service-featured-number">0{index + 1}</span></span><span className="service-featured-copy"><strong>{name}</strong><small><Clock3 size={14}/>{serviceDetails[name]?.duration ? `Estimativa · ${serviceDetails[name].duration}` : "Tempo sob avaliação"}</small></span><span className="service-featured-link">Conhecer serviço <ArrowUpRight size={16}/></span></button>)}</div>
         </section>
         <div className="service-featured-actions">{tabVisible("todos") && <button onClick={() => setView("todos")}>Mais serviços <ArrowUpRight size={16}/></button>}{tabVisible("pacote") && <button className="service-build-package" onClick={() => setView("pacote")}><Plus size={17}/> Monte seu pacote</button>}{tabVisible("agendar") && <button className="service-online-booking" onClick={() => setView("agendar")}><CalendarDays size={17}/> Agendar horário</button>}</div>
         <section className="service-reviews" aria-labelledby="service-reviews-title"><div className="service-reviews-heading"><div><p className="services-eyebrow">EXPERIÊNCIAS REAIS</p><h2 id="service-reviews-title">Avaliações de quem já cuidou do veículo</h2><p>Clientes avaliam os serviços realizados diretamente na área do cliente.</p></div>{reviews.length>0&&<span className="service-reviews-average"><Star size={17} fill="currentColor"/><strong>{(reviews.reduce((sum,review)=>sum+review.rating,0)/reviews.length).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})}</strong><small>{reviews.length} avaliação{reviews.length===1?"":"ões"}</small></span>}</div>{reviews.length?<div className="service-reviews-grid">{reviews.slice(0,6).map(review=><article className="service-review-card" key={review.id}><div className="service-review-stars" aria-label={`${review.rating} de 5 estrelas`}>{[1,2,3,4,5].map(star=><Star key={star} size={15} fill={star<=review.rating?"currentColor":"none"}/>)}</div><h3>{review.serviceName}</h3>{review.comment&&<p>“{review.comment}”</p>}<footer><strong>{review.customerName}</strong><span>{new Intl.DateTimeFormat("pt-BR",{dateStyle:"medium"}).format(new Date(review.createdAt))}</span></footer></article>)}</div>:<p className="service-reviews-empty">As avaliações dos clientes aparecerão aqui após a conclusão do primeiro serviço avaliado.</p>}</section>

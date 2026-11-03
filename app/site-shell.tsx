@@ -1,4 +1,5 @@
 "use client";
+import { SiteImage } from "@/components/site-image";
 import { withBase } from "@/lib/base";
 
 import { useContext, useState, type ReactNode } from "react";
@@ -18,7 +19,7 @@ export default function SiteShell({ current, children, management }: { current: 
   const workspace = useContext(WorkspaceContext);
   if (workspace) return <>{children}</>;
   const menu = <>
-    <a className="brand" href={withBase("/")} aria-label="Feijão Detailer: início"><img className="brand-logo" src={withBase("/feijao-detailer-logo.png")} alt="Feijão Detailer" /></a>
+    <a className="brand" href={withBase("/")} aria-label="Feijão Detailer: início"><SiteImage className="brand-logo" src={withBase("/feijao-detailer-logo.png")} alt="Feijão Detailer" /></a>
     <div className="side-note">FEIJÃO DETAILER</div>
     <nav aria-label="Navegação principal">{pages.map(({ key, href, label, icon: Icon }) => <a key={key} href={href} className={current === key ? "nav active" : "nav"} aria-current={current === key ? "page" : undefined}><Icon size={18} aria-hidden="true" />{label}</a>)}</nav>
     {management && <><div className="side-note">CONTROLE</div>{management}</>}
