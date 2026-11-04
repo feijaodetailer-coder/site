@@ -6,5 +6,5 @@ export function paymentStatus(order:OrderAmounts){
 export function orderSummary(orders:OrderAmounts[]){
  const completed=orders.filter(order=>order.status==='entregue');
  const value=completed.reduce((sum,order)=>sum+Number(order.data.total||0),0);
- return {completed:completed.length,value,ticket:completed.length?Math.round(value/completed.length):0,received:completed.reduce((sum,order)=>sum+Number(order.data.paid||0),0),outstanding:orders.filter(order=>order.status!=='cancelado').reduce((sum,order)=>sum+Math.max(0,Number(order.data.total||0)-Number(order.data.paid||0)),0)};
+ return {total:orders.filter(order=>order.status!=='cancelado').reduce((sum,order)=>sum+Number(order.data.total||0),0),completed:completed.length,value,ticket:completed.length?Math.round(value/completed.length):0,received:completed.reduce((sum,order)=>sum+Number(order.data.paid||0),0),outstanding:orders.filter(order=>order.status!=='cancelado').reduce((sum,order)=>sum+Math.max(0,Number(order.data.total||0)-Number(order.data.paid||0)),0)};
 }

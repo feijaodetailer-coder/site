@@ -211,7 +211,7 @@ export default function Operations({tab,admin,navigate}:{tab:string;admin:boolea
     <article><span>Ordens ativas</span><strong>{orderCounts.ativas}</strong></article>
     <article><span>Em execução</span><strong>{orderCounts.andamento}</strong></article>
     <article><span>Prontas para entrega</span><strong>{orderCounts.prontas}</strong></article>
-    <article><span>Saldo em aberto</span><strong>{money(orderTotals.outstanding)}</strong></article>
+    <article><span>Valor total das OS</span><strong>{money(orderTotals.total)}</strong></article>
    </div>
    <div className="order-filters" role="group" aria-label="Filtrar ordens por etapa">
     {[{id:'ativas',label:'Ativas',count:orderCounts.ativas},{id:'aguardando',label:'Aguardando entrada',count:orderCounts.aguardando},{id:'andamento',label:'Em andamento',count:orderCounts.andamento},{id:'prontas',label:'Prontas',count:orderCounts.prontas},{id:'entregues',label:'Entregues',count:orderCounts.entregues},{id:'canceladas',label:'Canceladas',count:orderCounts.canceladas},{id:'todos',label:'Todas',count:orderCounts.todos}].map(v=><button type="button" key={v.id} className={orderView===v.id?'active':''} aria-pressed={orderView===v.id} onClick={()=>setOrderView(v.id)}><span>{v.label}</span><strong>{v.count}</strong></button>)}

@@ -6,6 +6,7 @@ import {ArrowUpRight,Bell,CalendarDays,ChartNoAxesCombined,ClipboardList,Clock3,
 import {cash,summarize,type FinanceData} from '../lib/finance';
 import {completedDay,dayInBrazil,type HubRecord} from '../lib/vehicle-hub';
 import {clientReturnAlerts} from '../lib/overview';
+import {orderSummary} from '../lib/order-summary';
 import './overview.css';
 
 type OverviewData={
@@ -26,6 +27,7 @@ export default function OverviewPanel({data,finance,navigate}:{data:OverviewData
   const current=finance?summarize(finance,month,today):null;
   const orders=data.records.filter(r=>r.kind==='order');
   const completed=orders.filter(r=>r.status==='entregue');
+  const orderTotals=orderSummary(orders);
   const linkedBookings=new Set(orders.map(r=>Number(r.data.bookingId)).filter(Boolean));
   const completedAmounts=[...completed.filter(r=>!!completedDay(r,data.bookings)).map(r=>Number(r.data.total||0)),...data.bookings.filter(b=>b.status==='concluido'&&!linkedBookings.has(b.id)).map(b=>b.amount)];
   const ticket=completedAmounts.length?Math.round(completedAmounts.reduce((sum,amount)=>sum+amount,0)/completedAmounts.length):0;
@@ -46,6 +48,8 @@ export default function OverviewPanel({data,finance,navigate}:{data:OverviewData
     {label:'Clientes atendidos',value:String(completedClients.size),detail:'Clientes distintos · todo o período',icon:Users},
     {label:'Faturamento no mês',value:current?money(current.income):'—',detail:'Entradas recebidas neste mês',icon:Wallet},
     {label:'Orçamentos pendentes',value:String(data.records.filter(r=>r.kind==='quote'&&['solicitado','enviado'].includes(r.status)).length),detail:'Aguardando análise ou resposta',icon:FileText},
+    {label:'Valor total das OS',value:money(orderTotals.total),detail:'Todas as ordens, exceto canceladas',icon:ClipboardList},
+    {label:'A receber nas OS',value:money(orderTotals.outstanding),detail:'Saldo pendente, inclusive ordens entregues',icon:Wallet},
   ];
   type DetailRow={id:string;title:string;description:string;amount?:number};
   const customer=(id:number|null)=>id?clientById.get(id)?.name||'Cliente não encontrado':'Sem cliente vinculado';
@@ -62,8 +66,10 @@ export default function OverviewPanel({data,finance,navigate}:{data:OverviewData
     [...completedClients].map(id=>({id:String(id),title:customer(id),description:clientById.get(id)?.phone||'Telefone não informado'})),
     received(month),
     data.records.filter(r=>r.kind==='quote'&&['solicitado','enviado'].includes(r.status)).map(orderRow),
+    orders.filter(r=>r.status!=='cancelado').map(orderRow),
+    orders.filter(r=>r.status!=='cancelado'&&Number(r.data.total||0)>Number(r.data.paid||0)).map(r=>({...orderRow(r),amount:Number(r.data.total||0)-Number(r.data.paid||0)})),
   ];
-  const destinations=['financeiro','orders','orders','schedule','orders','clientes','financeiro','quotes'];
+  const destinations=['financeiro','orders','orders','schedule','orders','clientes','financeiro','quotes','orders','orders'];
   const selectedCard=selected===null?null:cards[selected];
   const selectedRows=selected===null?[]:details[selected];
   const matchingRows=selectedRows.filter(row=>`${row.title} ${row.description}`.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR')));
