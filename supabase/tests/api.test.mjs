@@ -89,6 +89,10 @@ test("gestão: mudar status do agendamento conclui a OS e gera acompanhamento", 
   const order = w.records.find(r => r.kind === "order" && String(r.data.bookingId) === String(bookingId));
   assert.equal(order.status, "entregue");
   assert.match(order.data.completedDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(order.data.paid || 0, 0);
+  const finance = ok(await call("admin", "GET", "/finance"));
+  assert.equal(finance.transactions.length, 0, "Concluir OS sem pagamento nao cria entrada");
+  assert.ok(finance.records.some(r => r.id === order.id && r.status === "entregue" && r.data.total > 0 && !r.data.paid), "OS entregue permanece a receber");
 });
 
 test("pagamento da OS gera lançamento e atualiza o agendamento", async () => {
