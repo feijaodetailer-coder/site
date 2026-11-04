@@ -5,7 +5,7 @@ export type QueryResult = { rows: Record<string, any>[]; count: number };
 export type Executor = (sql: string, params: unknown[]) => Promise<QueryResult>;
 export type Driver = { query: Executor; transaction<T>(fn: (query: Executor) => Promise<T>): Promise<T> };
 
-const toPositional = (sql: string) => { let n = 0; return sql.replace(/\?/g, () => `$${++n}`); };
+const toPositional = (sql: string) => { let n = 0; return sql.replace(/\?::jsonb/g, "?::text::jsonb").replace(/\?/g, () => `$${++n}`); };
 const clean = (params: unknown[]) => params.map(value => (value === undefined ? null : value));
 
 export type Statement = {
