@@ -1,3 +1,4 @@
+import {normalizeWorkflowRecord} from './workflow-values';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config";
 import { getSupabase } from "./supabase";
 import { withBase } from "./base";
@@ -17,7 +18,13 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   headers.set("apikey", SUPABASE_ANON_KEY);
   headers.set("Authorization", `Bearer ${(await accessToken()) ?? SUPABASE_ANON_KEY}`);
   try {
-    return await fetch(`${FUNCTION_URL}${path.replace(/^\/api/, "")}`, { ...init, headers });
+    const response=await fetch(`${FUNCTION_URL}${path.replace(/^\/api/, "")}`, { ...init, headers });
+    if(response.ok&&['/api/workflow','/api/finance'].includes(path)&&(!init.method||init.method==='GET')){
+      const body=await response.json();
+      if(Array.isArray(body.records))body.records=body.records.map(normalizeWorkflowRecord);
+      return Response.json(body,{status:response.status,headers:response.headers});
+    }
+    return response;
   } catch {
     return Response.json({ error: "Sem conexão com o servidor. Verifique a internet e tente novamente." }, { status: 503 });
   }
