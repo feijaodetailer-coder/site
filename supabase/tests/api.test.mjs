@@ -115,6 +115,18 @@ test("pagamento da OS gera lançamento e atualiza o agendamento", async () => {
   assert.ok(fin.categories.length >= 8);
 });
 
+test("OS e orçamento manuais conservam serviços e valores depois de salvar", async () => {
+  for (const kind of ["order", "quote"]) {
+    const title = `Teste manual ${kind}`;
+    const saved = ok(await call("admin", "POST", "/workflow", { action: "save", kind, clientId, status: kind === "order" ? "entregue" : "rascunho", data: { title, items: [{ name: "Polimento", qty: 2, price: 125.50 }], discount: 10 } }));
+    const current = ok(await call("admin", "GET", "/workflow")).records.find(r => r.id === saved.id);
+    assert.equal(current.data.items[0].price, 12550);
+    assert.equal(current.data.total, 24100);
+    assert.equal(current.data.discount, 1000);
+    assert.equal(current.status, kind === "order" ? "entregue" : "rascunho");
+  }
+});
+
 test("financeiro: criar, editar, idempotência e excluir lançamento", async () => {
   const base = { kind: "saida", date: nextWeekday(-30).replace(/\d{2}$/, "01"), description: "Compra de shampoo", category: "Produtos e insumos", financialStatus: "pago", amount: "45,90", paymentMethod: "Pix", requestId: "abcdefghijklmnop1234" };
   ok(await call("admin", "POST", "/finance", base));

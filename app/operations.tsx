@@ -111,7 +111,7 @@ export default function Operations({tab,admin,navigate}:{tab:string;admin:boolea
  const [data,setData]=useState<Data>(empty),[finance,setFinance]=useState<FinanceData|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [editor,setEditor]=useState<{kind:string;row?:RecordRow}|null>(null),[form,setForm]=useState<Values>({}),[clientId,setClientId]=useState(''),[status,setStatus]=useState('aberto'),[parentId,setParentId]=useState('');
  const [selectedQuoteTemplate,setSelectedQuoteTemplate]=useState(''),[declineQuote,setDeclineQuote]=useState<RecordRow|null>(null),[declineReason,setDeclineReason]=useState(''),[inventoryView,setInventoryView]=useState<'produtos'|'ferramentas'>('produtos');
- const [detail,setDetail]=useState<RecordRow|null>(null),[filter,setFilter]=useState(''),[quoteView,setQuoteView]=useState('abertos'),[orderView,setOrderView]=useState('ativas'),[profile,setProfile]=useState({name:'',phone:''});
+ const [detail,setDetail]=useState<RecordRow|null>(null),[filter,setFilter]=useState(''),[quoteView,setQuoteView]=useState('todos'),[orderView,setOrderView]=useState('todos'),[profile,setProfile]=useState({name:'',phone:''});
  const [paymentFilter,setPaymentFilter]=useState('todos');
  const [paymentMode,setPaymentMode]=useState('total');
  const [payment,setPayment]=useState<RecordRow|null>(null),[paymentValue,setPaymentValue]=useState(''),[method,setMethod]=useState('Pix');
