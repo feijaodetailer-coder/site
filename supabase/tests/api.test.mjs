@@ -127,6 +127,30 @@ test("OS e orçamento manuais conservam serviços e valores depois de salvar", a
   }
 });
 
+test("excluir OS preserva histórico e bloqueia ordens com recebimento", async () => {
+ for (const paid of [false,true]) {
+  const saved=ok(await call("admin","POST","/workflow",{action:"save",kind:"order",clientId,status:"aguardando entrada",data:{title:"Teste exclusão",items:[{name:"Serviço",qty:1,price:100}]}}));
+  let order=ok(await call("admin","GET","/workflow")).records.find(r=>r.id===saved.id);
+  if(paid){ok(await call("admin","POST","/workflow",{action:"payment",id:order.id,version:order.version,amount:10,method:"Pix"}));order=ok(await call("admin","GET","/workflow")).records.find(r=>r.id===saved.id);}
+  assert.equal((await call("intruder","POST","/workflow",{action:"delete_order",id:order.id,version:order.version})).status,403);
+  const result=await call("admin","POST","/workflow",{action:"delete_order",id:order.id,version:order.version});
+  if(paid)assert.equal(result.status,400);else {ok(result);assert.equal(ok(await call("admin","GET","/workflow")).records.find(r=>r.id===order.id).kind,"deleted_order");}
+ }
+});
+
+test("orçamento preserva prazo, validade padrão e etapas de aprovação", async()=>{
+ const saved=ok(await call("admin","POST","/workflow",{action:"save",kind:"quote",clientId,status:"enviado",data:{title:"Prazo teste",executionTime:2,executionUnit:"dias",items:[{name:"Polimento",qty:1,price:100}]}}));
+ let q=ok(await call("admin","GET","/workflow")).records.find(r=>r.id===saved.id);
+ assert.equal(q.data.executionTime,2);assert.equal(q.data.executionUnit,"dias");
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo'}).format(new Date());
+ assert.equal((Date.parse(q.data.validUntil)-Date.parse(today))/86400000,30);
+ assert.equal((await call("admin","POST","/workflow",{action:"complete_quote",id:q.id,version:q.version})).status,400);
+ ok(await call("admin","POST","/workflow",{action:"quote_decision",id:q.id,status:"aprovado"}));
+ q=ok(await call("admin","GET","/workflow")).records.find(r=>r.id===saved.id);
+ ok(await call("admin","POST","/workflow",{action:"complete_quote",id:q.id,version:q.version}));
+ assert.equal(ok(await call("admin","GET","/workflow")).records.find(r=>r.id===saved.id).status,"concluido");
+});
+
 test("financeiro: criar, editar, idempotência e excluir lançamento", async () => {
   const base = { kind: "saida", date: nextWeekday(-30).replace(/\d{2}$/, "01"), description: "Compra de shampoo", category: "Produtos e insumos", financialStatus: "pago", amount: "45,90", paymentMethod: "Pix", requestId: "abcdefghijklmnop1234" };
   ok(await call("admin", "POST", "/finance", base));

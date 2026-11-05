@@ -87,6 +87,24 @@ export async function workflowPost(request: Request) {
       await d.batch([d.prepare("DELETE FROM workflow_records WHERE id=? AND kind='quote_template' AND version=?").bind(template.id, template.version), audit(actor, "Modelo de orçamento excluído", template.id)]);
       return reply({ ok: true });
     }
+    if (p.action === "delete_order") {
+      if (!who.admin) return noAccess();
+      const order = await record(text(p.id));
+      if (order?.kind !== "order") throw Error("OS não encontrada.");
+      if (order.version !== Number(p.version)) throw Error("OS alterada. Atualize antes de excluir.");
+      const linked = await d.prepare("SELECT id FROM transactions WHERE record_id=? OR booking_id=? LIMIT 1").bind(order.id, Number(order.data.bookingId)||null).first();
+      const movement = await d.prepare("SELECT id FROM workflow_records WHERE parent_id=? AND kind='movement' LIMIT 1").bind(order.id).first();
+      if (Number(order.data.paid||0)>0 || linked || movement) throw Error("Esta OS tem pagamentos ou consumo de materiais. Concilie os vínculos antes de excluir para preservar o financeiro e o estoque.");
+      const stamp=now();
+      await d.batch([
+        d.prepare("INSERT INTO workflow_records(id,kind,status,data,created_at,updated_at) VALUES(CASE WHEN EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND version=?) THEN ? ELSE NULL END,'deletion_history','registrado',?::jsonb,?,?)").bind(order.id,order.version,crypto.randomUUID(),json({actor,order}),stamp,stamp),
+        audit(actor,"OS excluída",order.id),
+        d.prepare("UPDATE workflow_records SET kind='deleted_order',status='cancelado',version=version+1,updated_at=? WHERE id=? AND version=?").bind(stamp,order.id,order.version),
+        d.prepare("UPDATE workflow_records SET kind='deleted_followup',status='cancelado',version=version+1,updated_at=? WHERE parent_id=? AND kind='followup'").bind(stamp,order.id),
+        ...(order.data.bookingId?[d.prepare("UPDATE bookings SET status='cancelado' WHERE id=?").bind(Number(order.data.bookingId))]:[]),
+      ]);
+      return reply({ok:true});
+    }
     if (p.action === "cancel_order") {
       if (!who.admin) return noAccess();
       const order = await record(text(p.id));
@@ -122,6 +140,14 @@ export async function workflowPost(request: Request) {
       if (text(p.name).length < 2 || !/^\d{10,13}$/.test(text(p.phone).replace(/\D/g, ""))) throw Error("Informe nome e WhatsApp válidos.");
       await d.prepare("INSERT INTO clients(name,phone,vehicle,plate,notes,user_id,email) VALUES(?,?,'','','',?,?) ON CONFLICT(user_id) DO UPDATE SET name=EXCLUDED.name,phone=EXCLUDED.phone").bind(text(p.name, 80), text(p.phone, 30), actor, who.user.email).run();
       return reply({ ok: true });
+    }
+    if (p.action === "complete_quote") {
+      if (!who.admin) return noAccess();
+      const q=await record(text(p.id));
+      if(q?.kind!=="quote"||q.status!=="aprovado") throw Error("Aprove o orçamento antes de concluir.");
+      const result=await d.prepare("UPDATE workflow_records SET status='concluido',version=version+1,updated_at=? WHERE id=? AND status='aprovado' AND version=?").bind(now(),q.id,Number(p.version)).run();
+      if(!result.meta.changes)throw Error("Orçamento alterado. Atualize antes de concluir.");
+      await audit(actor,"Orçamento concluído",q.id).run();return reply({ok:true});
     }
     if (p.action === "quote_decision") {
       const q = await record(text(p.id));
@@ -234,14 +260,14 @@ async function saveRecord(p: any, who: { admin: boolean; client: { id: number } 
   if (p.id && !old && !(who.admin && (kind === "planrule" || kind === "settings"))) throw Error("Registro não encontrado.");
   if (old && (old.kind !== kind || (!who.admin && old.client_id !== who.client?.id))) return noAccess();
   if (old && old.version !== Number(p.version)) throw Error("Registro alterado. Atualize para continuar.");
-  if (old?.kind === "quote" && ["aprovado", "recusado"].includes(old.status)) throw Error("Crie um novo orçamento para alterar uma proposta já analisada.");
+  if (old?.kind === "quote" && ["aprovado", "concluido", "recusado"].includes(old.status)) throw Error("Crie um novo orçamento para alterar uma proposta já analisada.");
   const cid = who.admin ? (Number(p.clientId) || null) : who.client?.id || null;
   if (old?.client_id && old.client_id !== cid) throw Error("O cliente de um registro existente não pode ser alterado. Use o vínculo de histórico nas configurações.");
   if (["vehicle", "quote", "order", "inspection", "followup"].includes(kind) && !cid) throw Error("Cadastre ou selecione o cliente primeiro.");
   if (cid && !await d.prepare("SELECT id FROM clients WHERE id=?").bind(cid).first()) throw Error("Cliente inválido.");
   const input = p.data || {}, data: Record<string, any> = {};
   let status = text(p.status, 40) || "aberto";
-  const allowed: Record<string, string[]> = { campaign: ["title", "description", "offer", "terms", "starts", "ends"], vehicle: ["title", "year", "plate", "km", "notes", "protection"], quote: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes"], quote_template: ["title", "items", "discount", "notes"], order: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes", "checkIn", "checkOut", "minutes", "fuel", "km", "objects", "damages", "maintenanceDate", "completedDate", "sendReminders", "bookingId", "productsUsed"], inspection: ["title", "stage", "km", "fuel", "objects", "damages", "checks"], product: ["title", "supplier", "unit", "quantity", "minimum", "unitCost", "expires", "category", "brand", "volume", "purchasePrice", "startDate", "endDate"], followup: ["title", "date", "type", "notes", "rating"], planrule: ["title", "visits", "included", "frequency", "validity", "renewal", "cancellation", "scheduling"], bill: ["title", "total", "due", "direction", "category", "costType"], block: ["title", "start", "end"], settings: ["title", "address", "phone", "instructions"] };
+  const allowed: Record<string, string[]> = { campaign: ["title", "description", "offer", "terms", "starts", "ends"], vehicle: ["title", "year", "plate", "km", "notes", "protection"], quote: ["title", "items", "discount", "executionTime", "executionUnit", "validUntil", "delivery", "vehicleId", "notes"], quote_template: ["title", "items", "discount", "notes"], order: ["title", "items", "discount", "validUntil", "delivery", "vehicleId", "notes", "checkIn", "checkOut", "minutes", "fuel", "km", "objects", "damages", "maintenanceDate", "completedDate", "sendReminders", "bookingId", "productsUsed"], inspection: ["title", "stage", "km", "fuel", "objects", "damages", "checks"], product: ["title", "supplier", "unit", "quantity", "minimum", "unitCost", "expires", "category", "brand", "volume", "purchasePrice", "startDate", "endDate"], followup: ["title", "date", "type", "notes", "rating"], planrule: ["title", "visits", "included", "frequency", "validity", "renewal", "cancellation", "scheduling"], bill: ["title", "total", "due", "direction", "category", "costType"], block: ["title", "start", "end"], settings: ["title", "address", "phone", "instructions"] };
   for (const key of allowed[kind] || []) if (input[key] !== undefined) data[key] = input[key];
   const arrays = ["items", "checkIn", "checkOut", "damages", "checks", "productsUsed"];
   for (const key of Object.keys(data)) if (!arrays.includes(key) && key !== "sendReminders") data[key] = text(data[key]);
@@ -251,6 +277,14 @@ async function saveRecord(p: any, who: { admin: boolean; client: { id: number } 
   data.title = text(data.title, 120);
   const parent = text(p.parentId) || null;
   if (parent) { const linked = await record(parent); if (!linked || linked.client_id !== cid) throw Error("Vínculo inválido."); }
+  if (kind === "quote") {
+    if (!old && !data.validUntil) { const expires=new Date(dayInBrazil()+"T12:00:00Z");expires.setUTCDate(expires.getUTCDate()+30);data.validUntil=expires.toISOString().slice(0,10); }
+    if (data.executionTime !== undefined && data.executionTime !== "") {
+      const duration=Number(data.executionTime);
+      if(!Number.isFinite(duration)||duration<=0||duration>10000||!["horas","dias"].includes(String(data.executionUnit)))throw Error("Informe tempo de execução válido em horas ou dias.");
+      data.executionTime=duration;
+    }
+  }
   if (["quote", "order"].includes(kind)) {
     if (!Array.isArray(data.items) || data.items.length === 0 || data.items.length > 50) throw Error("Inclua ao menos um serviço.");
     data.items = data.items.map((i: Record<string, unknown>) => { const qty = Number(i.qty); if (!Number.isInteger(qty) || qty < 1 || qty > 100) throw Error("Quantidade inválida."); return { name: text(i.name, 150), qty, price: amount(i.price) }; });
