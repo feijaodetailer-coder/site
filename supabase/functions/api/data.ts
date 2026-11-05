@@ -1,5 +1,5 @@
 import { catalog } from "../_shared/catalog.ts";
-import { BLOCK_OVERLAP_SQL, BOOKING_OVERLAP_SQL, checkAvailability, db, ensureBookingOrder, identity, json, localDate, now, reply, reserveBooking } from "./lib.ts";
+import { BLOCK_OVERLAP_SQL, BOOKING_OVERLAP_SQL, checkAvailability, audit, db, ensureBookingOrder, identity, json, localDate, now, reply, reserveBooking } from "./lib.ts";
 
 const PRICE_RECOMMENDATION_ID = "price-recommendations-bh-2026-v1";
 const denied = () => reply({ error: "Acesso não autorizado" }, 401);
@@ -17,7 +17,7 @@ export async function dataGet(request: Request) {
     if (!count?.total) await d.batch(catalog.map(item => d.prepare("INSERT INTO services (name,category,price,duration,booking_duration,description) VALUES (?,?,?,?,?,?) ON CONFLICT DO NOTHING").bind(item.name, item.category, item.price, item.duration, item.bookingDuration ?? 30, item.description)));
     const [clients, services, bookings, transactions, plans, vehicles, orders, referralEvents] = await Promise.all([
       d.prepare("SELECT * FROM clients ORDER BY name").all(),
-      d.prepare("SELECT * FROM services ORDER BY name").all(),
+      d.prepare("SELECT * FROM services WHERE NOT archived ORDER BY name").all(),
       d.prepare("SELECT b.*,s.name AS service_name,s.duration AS service_duration,COALESCE(b.booking_duration,s.booking_duration,s.duration) AS duration FROM bookings b JOIN services s ON s.id=b.service_id ORDER BY b.start_at DESC").all(),
       d.prepare("SELECT * FROM transactions ORDER BY date DESC, id DESC").all(),
       d.prepare("SELECT * FROM plan_subscriptions ORDER BY requested_at DESC").all(),
@@ -73,7 +73,7 @@ export async function dataPost(request: Request) {
     } else if (p.table === "bookings") {
       const clientId = Number(p.clientId), serviceId = Number(p.serviceId), startAt = clean(p.startAt);
       if (!clientId || !serviceId || !startAt) return fail("Selecione cliente, serviço e horário.");
-      const service = await d.prepare("SELECT price,booking_duration FROM services WHERE id=?").bind(serviceId).first<{ price: number; booking_duration: number }>();
+      const service = await d.prepare("SELECT price,booking_duration FROM services WHERE id=? AND NOT archived").bind(serviceId).first<{ price: number; booking_duration: number }>();
       if (!service) return fail("Serviço não encontrado.");
       if (!Number.isFinite(new Date(startAt).getTime())) return fail("Horário inválido.");
       await checkAvailability(startAt, service.booking_duration);
@@ -96,7 +96,7 @@ export async function dataPatch(request: Request) {
     if (p.table === "services") {
       const id = Number(p.id), name = clean(p.name), rawPrice = Number(p.price), price = money(p.price), duration = Number(p.duration), bookingDuration = Number(p.bookingDuration);
       if (!id || !name || !Number.isFinite(rawPrice) || rawPrice < 0 || !Number.isInteger(duration) || duration < 1 || !Number.isInteger(bookingDuration) || bookingDuration < 1 || bookingDuration > 240) return fail("Informe nome, preço e durações válidos.");
-      const updated = await d.prepare("UPDATE services SET name=?,category=?,price=?,duration=?,booking_duration=?,description=? WHERE id=? RETURNING id").bind(name, clean(p.category) || "Outros", price, duration, bookingDuration, clean(p.description), id).first();
+      const updated = await d.prepare("UPDATE services SET name=?,category=?,price=?,duration=?,booking_duration=?,description=? WHERE id=? AND NOT archived RETURNING id").bind(name, clean(p.category) || "Outros", price, duration, bookingDuration, clean(p.description), id).first();
       if (!updated) return fail("Serviço não encontrado.", 404);
       return reply({ ok: true });
     }
@@ -112,7 +112,7 @@ export async function dataPatch(request: Request) {
       if (!id || !serviceId || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(startAt)) return fail("Informe serviço, data e horário válidos.");
       const booking = await d.prepare("SELECT status,paid FROM bookings WHERE id=?").bind(id).first<{ status: string; paid: number }>();
       if (!booking || !["solicitado", "agendado"].includes(booking.status)) return fail("Somente agendamentos ainda não iniciados podem ser editados.");
-      const service = await d.prepare("SELECT name,price,booking_duration FROM services WHERE id=?").bind(serviceId).first<{ name: string; price: number; booking_duration: number }>();
+      const service = await d.prepare("SELECT name,price,booking_duration FROM services WHERE id=? AND NOT archived").bind(serviceId).first<{ name: string; price: number; booking_duration: number }>();
       if (!service) return fail("Serviço não encontrado.");
       if (booking.paid > service.price) return fail("O valor do novo serviço é menor que o pagamento já recebido.");
       await checkAvailability(startAt, service.booking_duration, id);
@@ -179,4 +179,20 @@ export async function dataPatch(request: Request) {
     if (bookingStatus === "agendado") await ensureBookingOrder(bookingId);
     return reply({ ok: true });
   } catch (e) { return fail(e instanceof Error ? e.message : "Falha ao atualizar", 500); }
+}
+
+export async function dataDelete(request: Request) {
+  const who=await identity(request);
+  if (!who.admin) return denied();
+  try {
+    const p=await request.json() as Record<string,unknown>;
+    if(p.table!=="services"||!Number.isSafeInteger(Number(p.id))||Number(p.id)<1)return fail("Serviço inválido.");
+    const service=await db().prepare("SELECT id,name FROM services WHERE id=? AND NOT archived").bind(Number(p.id)).first<{id:number;name:string}>();
+    if(!service)return fail("Serviço não encontrado.",404);
+    await db().batch([
+      db().prepare("UPDATE services SET archived=true WHERE id=?").bind(service.id),
+      audit(who.user!.userId,`Serviço excluído do catálogo: ${service.name}`,`service:${service.id}`),
+    ]);
+    return reply({ok:true});
+  }catch(e){return fail(e instanceof Error?e.message:"Não foi possível excluir o serviço.");}
 }

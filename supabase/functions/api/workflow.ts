@@ -40,7 +40,7 @@ export async function workflowGet(request: Request) {
       who.admin ? d.prepare("SELECT b.*,s.name AS service_name,s.duration AS service_duration,COALESCE(b.booking_duration,s.booking_duration,s.duration) AS duration FROM bookings b JOIN services s ON s.id=b.service_id ORDER BY start_at DESC").all()
         : d.prepare("SELECT b.id,b.start_at,b.status,b.amount,b.paid,b.service_id,s.name AS service_name,s.duration AS service_duration,COALESCE(b.booking_duration,s.booking_duration,s.duration) AS duration FROM bookings b JOIN services s ON s.id=b.service_id WHERE b.client_id=? ORDER BY start_at DESC").bind(cid).all(),
       d.prepare(`SELECT p.*,s.name AS plan_name FROM plan_subscriptions p JOIN services s ON s.id=p.plan_service_id ${who.admin ? "" : "WHERE p.client_id=?"} ORDER BY requested_at DESC`).bind(...(who.admin ? [] : [cid])).all(),
-      d.prepare("SELECT * FROM services ORDER BY name").all(),
+      d.prepare("SELECT * FROM services WHERE NOT archived ORDER BY name").all(),
       d.prepare(`SELECT * FROM attachments ${who.admin ? "" : "WHERE client_id=? AND (shared=1 OR record_id LIKE 'plan:%')"}`).bind(...(who.admin ? [] : [cid])).all(),
       who.admin ? d.prepare("SELECT * FROM transactions ORDER BY date DESC,id DESC").all() : Promise.resolve({ results: [] }),
     ]);
@@ -128,7 +128,7 @@ export async function workflowPost(request: Request) {
       if (order?.kind !== "order" || order.status === "cancelado") throw Error("OS indisponível.");
       const data = order.data;
       if (data.bookingId) throw Error("Esta OS já possui agendamento. Use a agenda para reagendar.");
-      const service = await d.prepare("SELECT id,booking_duration FROM services WHERE id=?").bind(Number(p.serviceId)).first<{ id: number; booking_duration: number }>();
+      const service = await d.prepare("SELECT id,booking_duration FROM services WHERE id=? AND NOT archived").bind(Number(p.serviceId)).first<{ id: number; booking_duration: number }>();
       if (!service) throw Error("Serviço inválido.");
       await checkAvailability(text(p.startAt), service.booking_duration);
       // A referência determinística da OS nas notas faz com que novas tentativas reutilizem o mesmo agendamento.

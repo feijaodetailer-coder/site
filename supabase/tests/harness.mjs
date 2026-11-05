@@ -20,6 +20,7 @@ export async function createApi() {
   const pg = new PGlite();
   await pg.exec("create schema storage; create table storage.buckets (id text primary key, name text, public boolean, file_size_limit int); create role anon; create role authenticated;");
   await pg.exec(migration);
+  await pg.exec(readFileSync(new URL("../migrations/20261105000000_archive_services.sql", import.meta.url), "utf8"));
   const exec = runner => async (sql, params) => {
     const result = await runner.query(sql, params);
     return { rows: result.rows, count: result.affectedRows ?? result.rows.length };

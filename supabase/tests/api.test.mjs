@@ -337,3 +337,15 @@ test("ordem de serviço, estoque, vínculo de histórico e exportação", async 
   assert.ok(Array.isArray(backup.body.clients));
   assert.equal(JSON.stringify(backup.body).includes("password"), false);
 });
+
+
+test("exclusão de serviço exige gestão e preserva histórico",async()=>{
+ assert.equal((await call("intruder","DELETE","/data",{table:"services",id:serviceId})).status,401);
+ ok(await call("admin","DELETE","/data",{table:"services",id:serviceId}));
+ assert.ok(!ok(await call("admin","GET","/data")).services.some(s=>s.id===serviceId));
+ assert.ok(!ok(await call(null,"GET","/public")).services.some(s=>s.id===serviceId));
+ const workflow=ok(await call("admin","GET","/workflow"));
+ assert.ok(!workflow.services.some(s=>s.id===serviceId));
+ assert.ok(workflow.bookings.some(b=>b.id===bookingId));
+ assert.equal((await call(null,"POST","/public",{type:"booking",serviceId,name:"Teste",phone:"31999998888",vehicle:"Gol",desiredAt:nextWeekday()+"T10:00"})).status,400);
+});

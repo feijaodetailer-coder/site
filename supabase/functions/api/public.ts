@@ -21,7 +21,7 @@ export async function publicGet(request: Request) {
     if (url.searchParams.get("availability") === "1") {
       const day = value(url.searchParams.get("date"), 10), serviceId = Number(url.searchParams.get("serviceId"));
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isInteger(serviceId) || serviceId < 1) return jsonError("Escolha um serviço e um dia válidos.");
-      const service = await db().prepare("SELECT booking_duration FROM services WHERE id=? AND category<>'Planos mensais'").bind(serviceId).first<{ booking_duration: number }>();
+      const service = await db().prepare("SELECT booking_duration FROM services WHERE id=? AND NOT archived AND category<>'Planos mensais'").bind(serviceId).first<{ booking_duration: number }>();
       if (!service || settings.hiddenServiceIds.includes(serviceId)) return jsonError("Serviço indisponível.");
       const [booked, blocks] = await Promise.all([
         db().prepare(`SELECT b.start_at,COALESCE(b.booking_duration,s.booking_duration,s.duration) AS duration
@@ -32,7 +32,7 @@ export async function publicGet(request: Request) {
       return reply({ date: day, slots: availableBookingSlots(day, service.booking_duration, booked.results, blocks.results.map(row => row.data)) }, 200, noStore);
     }
     const [services, rules, popular, reviews] = await Promise.all([
-      db().prepare("SELECT id,name,category,price,duration,booking_duration,description FROM services ORDER BY category,name").all<{ id: number; category: string }>(),
+      db().prepare("SELECT id,name,category,price,duration,booking_duration,description FROM services WHERE NOT archived ORDER BY category,name").all<{ id: number; category: string }>(),
       db().prepare("SELECT id,data FROM workflow_records WHERE kind='planrule'").all(),
       db().prepare("SELECT service_name,clicks FROM service_interest WHERE clicks>0 ORDER BY clicks DESC,service_name LIMIT 3").all<{ service_name: string; clicks: number }>(),
       db().prepare("SELECT r.id,r.data,r.created_at,c.name AS customer_name FROM workflow_records r JOIN clients c ON c.id=r.client_id WHERE r.kind='review' AND r.status='publicado' ORDER BY r.created_at DESC LIMIT 12").all<{id:string;data:Record<string,unknown>;created_at:string;customer_name:string}>(),
@@ -80,7 +80,7 @@ export async function publicPost(request: Request) {
     if (!["booking", "plan"].includes(type) || name.length < 2 || !/^\d{10,13}$/.test(phone) || vehicle.length < 2) return jsonError("Preencha nome, WhatsApp e veículo corretamente.");
     const serviceId = Number(payload.serviceId);
     if (!Number.isInteger(serviceId) || serviceId < 1) return jsonError("Selecione um serviço.");
-    const service = await d.prepare("SELECT id,category,price,booking_duration FROM services WHERE id=?").bind(serviceId).first<{ id: number; category: string; price: number; booking_duration: number }>();
+    const service = await d.prepare("SELECT id,category,price,booking_duration FROM services WHERE id=? AND NOT archived").bind(serviceId).first<{ id: number; category: string; price: number; booking_duration: number }>();
     const { settings } = await readSiteDisplay();
     if (type === "plan" && settings.hiddenTabs.includes("planos")) return jsonError("Esta opção está indisponível no site.", 403);
     if (!service || !offerIsVisible(settings, service) || (type === "plan") !== (service.category === "Planos mensais")) return jsonError("Serviço indisponível.");

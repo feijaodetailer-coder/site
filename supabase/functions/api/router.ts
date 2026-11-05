@@ -1,5 +1,5 @@
 import { backupsGet } from "./backup.ts";
-import { dataGet, dataPatch, dataPost } from "./data.ts";
+import { dataGet, dataPatch, dataPost, dataDelete } from "./data.ts";
 import { filesGet, filesPost } from "./files.ts";
 import { financeGet, financeMutate } from "./finance.ts";
 import { reply } from "./lib.ts";
@@ -9,7 +9,7 @@ import { workflowGet, workflowPost } from "./workflow.ts";
 
 type Handler = (request: Request) => Promise<Response>;
 const routes: Record<string, Partial<Record<string, Handler>>> = {
-  data: { GET: dataGet, POST: dataPost, PATCH: dataPatch },
+  data: { GET: dataGet, POST: dataPost, PATCH: dataPatch, DELETE: dataDelete },
   workflow: { GET: workflowGet, POST: workflowPost },
   public: { GET: publicGet, POST: publicPost },
   finance: { GET: financeGet, POST: r => financeMutate(r, "POST"), PATCH: r => financeMutate(r, "PATCH"), DELETE: r => financeMutate(r, "DELETE") },
