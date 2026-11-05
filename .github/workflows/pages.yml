@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -41,21 +41,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Liberar implantação antiga antes de publicar
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          deployment_path="repos/${{ github.repository }}/pages/deployments/156f0c12d8d4b5ee0a70e595f411491a0e96d15b"
-          gh api --method POST "$deployment_path/cancel"
-          for attempt in $(seq 1 12); do
-            deployment_state=$(gh api "$deployment_path" --jq '.status')
-            echo "::notice::Estado da implantação antiga: $deployment_state"
-            case "$deployment_state" in
-              succeed|deployment_cancelled|deployment_failed|deployment_lost) exit 0 ;;
-            esac
-            sleep 10
-          done
-          echo "::error::GitHub Pages não concluiu o cancelamento da implantação antiga."
-          exit 1
       - id: deployment
         uses: actions/deploy-pages@v4
