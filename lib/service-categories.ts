@@ -1,7 +1,56 @@
 export const serviceCategories = [
-  { id: "pacotes", name: "Pacotes de limpeza", intro: "Limpeza e proteção para manter seu veículo bem cuidado.", items: ["Lavagem detalhada interna e externa", "Limpeza técnica com proteção de até 6 meses", "Manutenção de vitrificação"] },
-  { id: "interna", name: "Serviços parte interna", intro: "Cuidado com cada superfície do interior do seu veículo.", items: ["Detalhamento interno", "Higienização interna completa", "Higienização interna com desmontagem", "Higienização dos bancos de tecido", "Limpeza e tratamento de couro", "Higienização de carpetes e tapetes", "Neutralização de odores"] },
-  { id: "externa", name: "Serviços parte externa", intro: "Atenção aos detalhes, da carroceria ao chassi.", items: ["Detalhamento externo", "Limpeza técnica com proteção de até 6 meses", "Limpeza e tratamento de motor", "Limpeza e tratamento de chassi"] },
-  { id: "pintura", name: "Tratamentos de pintura", intro: "Acabamento, brilho e proteção para a pintura.", items: ["Polimento comercial", "Polimento técnico", "Vitrificação de pintura", "Enceramento técnico"] },
-  { id: "adicionais", name: "Serviços adicionais", intro: "Complete o cuidado com os detalhes que fazem a diferença.", items: ["Polimento de faróis", "Restauração de faróis com proteção UV", "Remoção de chuva ácida dos vidros", "Cristalização de vidros", "Polimento de vidros", "Vitrificação de plásticos externos", "Vitrificação de rodas", "Remoção de marcas superficiais e transferência de tinta", "Detalhamento de rodas e caixas de roda", "Limpeza de forro de teto"] },
+  {
+    "id": "pacotes",
+    "name": "Limpeza",
+    "intro": "Limpeza e proteção para seu veículo.",
+    "items": [
+      "Limpeza técnica + proteção",
+      "Lavagem detalhada"
+    ]
+  },
+  {
+    "id": "interna",
+    "name": "Higienização interna",
+    "intro": "Cuidados para interiores de couro e tecido.",
+    "items": [
+      "Higienização interna — couro",
+      "Higienização interna — tecido"
+    ]
+  },
+  {
+    "id": "externa",
+    "name": "Tratamento de motor",
+    "intro": "Cuidado com o cofre do motor.",
+    "items": [
+      "Tratamento de motor"
+    ]
+  },
+  {
+    "id": "pintura",
+    "name": "Polimento e proteção",
+    "intro": "Brilho e proteção para seu veículo.",
+    "items": [
+      "Polimento comercial",
+      "Polimento técnico",
+      "Vitrificação de pintura",
+      "Vitrificação full"
+    ]
+  },
+  {
+    "id": "adicionais",
+    "name": "Serviços adicionais",
+    "intro": "Complete o cuidado com seu veículo.",
+    "items": [
+      "Remoção de chuva ácida",
+      "Limpeza de forro de teto",
+      "Limpeza de bancos de couro",
+      "Limpeza de bancos de tecido",
+      "Revitalização de plásticos internos",
+      "Revitalização de plásticos externos",
+      "Revitalização de plásticos full",
+      "Polimento de peça",
+      "Polimento de farol",
+      "Restauração de farol"
+    ]
+  }
 ];

@@ -32,8 +32,8 @@ const categoryMeta:Record<string,{image:string;intro:string}>={
 const price=(cents:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(cents/100);
 const todayLocal=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const durationLabel=(minutes:number)=>minutes>=1440?String(Math.ceil(minutes/1440))+(minutes/1440>1?" dias úteis":" dia útil"):minutes>=60?String(Math.floor(minutes/60))+" h"+(minutes%60?" "+(minutes%60)+" min":""):minutes+" min";
-const baseName=(name:string)=>name.replace(/ · (Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u,"");
-const variantLabel=(name:string)=>name.match(/ · (Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u)?.[1]||"Valor inicial";
+const baseName=(name:string)=>name.replace(/ · (Hatch, SUV e Sedan|Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u,"");
+const variantLabel=(name:string)=>name.match(/ · (Hatch, SUV e Sedan|Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u)?.[1]||"Valor inicial";
 
 function groupServices(services:Service[]):Group[]{
     const map=new Map<string,Group>();

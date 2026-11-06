@@ -21,35 +21,19 @@ import { catalogTabs, type SiteDisplay } from "../lib/site-display";
 
 const serviceImage = (name: string) => {
   const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const image = normalized.includes("moto") ? "motos-premium-v2.png"
+  const image = /\bmotos?\b/i.test(normalized) ? "motos-premium-v2.png"
     : /banco|couro|higien|odor|carpete|forro|intern|tecido|motor|chassi/.test(normalized) ? "tratamentos-premium-v2.png"
     : /polimento|pintura|vitrifica|enceramento|farol|vidro/.test(normalized) ? "polimento-premium-v2.png"
     : /pacote/.test(normalized) ? "pacotes-premium-v2.png"
     : "limpeza-premium-v2.png";
   return withBase(`/service-images/${image}`);};
-const fallbackFeatured = ["Vitrificação de pintura", "Polimento técnico", "Lavagem detalhada interna e externa"];
+const fallbackFeatured = ["Vitrificação de pintura", "Polimento técnico", "Lavagem detalhada"];
 type PricedService={id:number;name:string;category:string;price:number;duration:number};
 type PublicReview={id:string;serviceName:string;rating:number;comment:string;customerName:string;createdAt:string};
-const packageBase=(name:string)=>name.replace(" · Popular","").replace(" · SUV","").replace(" · Caminhonete","").replace(" · 5 lugares","").replace(" · 7 lugares","");
-const variantLabel=(name:string)=>name.match(/ · (Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u)?.[1]||"Valor inicial";
+const packageBase=(name:string)=>name.replace(" · Hatch, SUV e Sedan","").replace(" · Popular","").replace(" · SUV","").replace(" · Caminhonete","").replace(" · 5 lugares","").replace(" · 7 lugares","");
+const variantLabel=(name:string)=>name.match(/ · (Hatch, SUV e Sedan|Popular|SUV|Caminhonete|5 lugares|7 lugares)$/u)?.[1]||"Todos os veículos";
 const brl=(value:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(value/100);
 const serviceTime=(minutes:number)=>minutes>=1440?String(Math.ceil(minutes/1440))+(minutes/1440>1?" dias úteis":" dia útil"):minutes>=60?String(Math.floor(minutes/60))+" h"+(minutes%60?" "+(minutes%60)+" min":""):minutes+" min";
-const detailCatalogBase=(name:string)=>{
-  const label=name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
-  const rules:[RegExp,string][]=[
-    [/higienizacao dos bancos de tecido|higienizacao interna completa/,"Higienização de Tecidos"],
-    [/limpeza e tratamento de couro/,"Tratamento de Couro"],
-    [/limpeza e tratamento de motor/,"Tratamento do Motor"],
-    [/polimento comercial/,"Polimento Comercial"],
-    [/polimento tecnico/,"Polimento Técnico"],
-    [/vitrificacao de pintura/,"Vitrificação"],
-    [/limpeza tecnica com protecao/,"Limpeza Técnica"],
-    [/lavagem detalhada interna e externa|detalhamento interno|detalhamento externo/,"Limpeza Detalhada"],
-    [/moto.*correcao|correcao.*pintura/,"Moto · Correção de Pintura"],
-    [/moto.*detalha|lavagem.*moto/,"Moto · Limpeza Detalhada"],
-  ];
-  return rules.find(([pattern])=>pattern.test(label))?.[1]||"";
-};
 
 export default function ServicesPage({ initialTab = "destaques" }: { initialTab?: string }) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -62,16 +46,16 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   const [serviceBookingOpen,setServiceBookingOpen]=useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteDisplay | null>(null);
   const [catalogError, setCatalogError] = useState(false);
-  const availableCategories = categories.filter(category => siteSettings && !siteSettings.hiddenCategories.includes(category.id)).map(category => ({ ...category, items: category.items.filter(name => !siteSettings!.hiddenEditorialServices.includes(name)) })).filter(category => category.items.length > 0);
+  const [catalogServices,setCatalogServices]=useState<PricedService[]>([]);
+  const availableCategories = categories.filter(category => siteSettings && !siteSettings.hiddenCategories.includes(category.id)).map(category => ({ ...category, items: category.items.filter(name => !siteSettings!.hiddenEditorialServices.includes(name) && catalogServices.some(service => packageBase(service.name) === name)) })).filter(category => category.items.length > 0);
   const visibleTabs = catalogTabs.filter(tab => siteSettings && !siteSettings.hiddenTabs.includes(tab.id));
   const activeView = view === "agendar" && serviceBookingOpen ? "agendar" : visibleTabs.some(tab => tab.id === view) ? view : visibleTabs[0]?.id ?? "";
   const tabVisible = (id: string) => visibleTabs.some(tab => tab.id === id);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
-  const [catalogServices,setCatalogServices]=useState<PricedService[]>([]);
-  const motorcycleServices = [...new Set(catalogServices.filter(service => /moto/i.test(service.name) || /moto/i.test(service.category)).map(service => service.name))];
+  const motorcycleServices = [...new Set(catalogServices.filter(service => /\bmotos?\b/i.test(service.name) || /\bmotos?\b/i.test(service.category)).map(service => service.name))];
   const visibleCategories = vehicleType === "moto"
-    ? [...availableCategories.filter(category => /moto/i.test(category.id + category.name) || category.items.some(name => /moto/i.test(name))), ...(motorcycleServices.length ? [{ id: "motos", name: "Serviços para motos", intro: "Serviços dedicados à sua moto.", items: motorcycleServices }] : [])]
-    : availableCategories.filter(category => !/moto/i.test(category.id + category.name) && !category.items.some(name => /moto/i.test(name)));
+    ? [...availableCategories.filter(category => /\bmotos?\b/i.test(category.id + category.name) || category.items.some(name => /\bmotos?\b/i.test(name))), ...(motorcycleServices.length ? [{ id: "motos", name: "Serviços para motos", intro: "Serviços dedicados à sua moto.", items: motorcycleServices }] : [])]
+    : availableCategories.filter(category => !/\bmotos?\b/i.test(category.id + category.name) && !category.items.some(name => /\bmotos?\b/i.test(name)));
   const allServices = visibleCategories.flatMap(category => category.items);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [showServicePrice,setShowServicePrice]=useState(false);
@@ -84,7 +68,7 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
   }, []);
   const featured = vehicleType === "moto" ? motorcycleServices.slice(0, 3) : fallbackFeatured.filter(name => allServices.includes(name));
   const filtered = allServices.filter(name => name.toLocaleLowerCase("pt-BR").includes(query.trim().toLocaleLowerCase("pt-BR")));
-  const packageServices=useMemo(()=>catalogServices.filter(service=>!["Pacotes","Planos mensais"].includes(service.category) && (vehicleType === "moto" ? /moto/i.test(service.name) || /moto/i.test(service.category) : !/moto/i.test(service.name) && !/moto/i.test(service.category))),[catalogServices,vehicleType]);
+  const packageServices=useMemo(()=>catalogServices.filter(service=>!["Pacotes","Planos mensais"].includes(service.category) && (vehicleType === "moto" ? /\bmotos?\b/i.test(service.name) || /\bmotos?\b/i.test(service.category) : !/\bmotos?\b/i.test(service.name) && !/\bmotos?\b/i.test(service.category))),[catalogServices,vehicleType]);
   const packageCategories=useMemo(()=>[...new Set(packageServices.map(service=>service.category))].map(category=>({category,items:packageServices.filter(service=>service.category===category)})),[packageServices]);
   const selectedOffers=packageServices.filter(service=>selected.includes(service.name));
   const subtotal=selectedOffers.reduce((sum,service)=>sum+service.price,0);
@@ -99,7 +83,7 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
     setShowServicePrice(false);
     void apiFetch("/api/public", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "interest", serviceName: name }) }).catch(() => {});
   };
-  const detailOffers=selectedService?(()=>{const base=detailCatalogBase(selectedService);return base?catalogServices.filter(service=>packageBase(service.name)===base):[]})():[];
+  const detailOffers=selectedService?(()=>{const base=selectedService;return base?catalogServices.filter(service=>packageBase(service.name)===base):[]})():[];
   const detailWhatsapp=selectedService?"https://wa.me/5531993444280?text="+encodeURIComponent(`Olá! Vim pelo site da Feijão Detailer e gostaria de conversar sobre ${selectedService}. ${detailOffers.length?"Gostaria de confirmar qual opção e valor se aplicam ao meu veículo.":"Gostaria de receber um orçamento para este serviço."}`):"#";
   const bookSelectedService=()=>{const id=detailOffers[0]?.id||null;setBookingServiceId(id);setSelectedService(null);setServiceBookingOpen(true);setView("agendar")};
 
@@ -108,10 +92,10 @@ export default function ServicesPage({ initialTab = "destaques" }: { initialTab?
       <div className="designer-hero-copy"><p className="services-eyebrow">FEIJÃO DETAILER · ESTÉTICA AUTOMOTIVA</p><h1>Seu carro merece<br/>esse <em>cuidado.</em></h1><p>Do primeiro brilho à proteção que fica. Encontre o cuidado ideal para o seu veículo, com atenção a cada detalhe.</p><div className="designer-hero-detail"><span/>Explore os serviços. Escolha no seu tempo.</div></div>
       <div className="designer-hero-photo"><SiteImage src={withBase("/service-images/limpeza-editorial.webp")} alt="Cuidado detalhado com a limpeza da carroceria de um veículo" fetchPriority="high"/><span className="designer-photo-caption">CUIDADO EM CADA DETALHE <ArrowUpRight size={20}/></span></div>
     </header>
-    <div className="service-vehicle-selector" role="group" aria-label="Escolha o tipo de veículo" style={{ display: "flex", justifyContent: "center", gap: 8, margin: "1.25rem 0" }}>
+    {motorcycleServices.length > 0 && <div className="service-vehicle-selector" role="group" aria-label="Escolha o tipo de veículo" style={{ display: "flex", justifyContent: "center", gap: 8, margin: "1.25rem 0" }}>
       {(["carro", "moto"] as const).map(type => <button key={type} type="button" aria-pressed={vehicleType === type} onClick={() => { setVehicleType(type); setSelected([]); setExpandedCategories([]); setExpandedPackageCategories([]); setQuery(""); }} style={{ border: vehicleType === type ? "1px solid #c8101e" : "1px solid #d5d5d5", borderRadius: 999, padding: "0.65rem 1.25rem", background: vehicleType === type ? "#c8101e" : "#fff", color: vehicleType === type ? "#fff" : "#222", fontWeight: 600, cursor: "pointer" }}>{type === "carro" ? "Carro" : "Moto"}</button>)}
-    </div>
-    {view !== "agendar" && <p style={{ textAlign: "center", margin: "-0.75rem 0 1.25rem", color: "#666", fontSize: "0.875rem" }}>A escolha do veículo filtra os destaques, o catálogo e os pacotes.</p>}
+    </div>}
+    {motorcycleServices.length > 0 && view !== "agendar" && <p style={{ textAlign: "center", margin: "-0.75rem 0 1.25rem", color: "#666", fontSize: "0.875rem" }}>A escolha do veículo filtra os destaques, o catálogo e os pacotes.</p>}
     <Tabs value={activeView} onValueChange={next => { setServiceBookingOpen(false); setView(next); }} className="services-tabs">
       <TabsList className="services-tab-list" aria-label="Explore serviços e planos">{visibleTabs.map(tab => <TabsTrigger value={tab.id} key={tab.id}>{tab.id === "agendar" && <CalendarDays size={16}/ >}{tab.id === "pacote" && <Plus size={17}/ >}{tab.label}{tab.id === "pacote" && selected.length > 0 && <span className="selection-count">{selected.length}</span>}</TabsTrigger>)}</TabsList>
       {!siteSettings ? <p role="status" className="services-empty">{catalogError ? "Não foi possível carregar os serviços. Atualize a página para tentar novamente." : "Carregando serviços..."}</p> : !visibleTabs.length && <p className="services-empty">O catálogo está temporariamente indisponível. Fale com a equipe pelo WhatsApp.</p>}
