@@ -48,7 +48,7 @@ setRuntime({
     const { data, error } = await admin.auth.getUser(token);
     if (error || !data.user) return null;
     const user = data.user;
-    return { id: user.id, email: user.email ?? "", name: String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? ""), confirmed: !!user.email_confirmed_at };
+    return { id: user.id, email: user.email ?? "", name: String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? ""), verifiedPhone: user.phone_confirmed_at ? user.phone : undefined, confirmed: !!user.email_confirmed_at };
   },
 });
 

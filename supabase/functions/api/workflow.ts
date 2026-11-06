@@ -1,3 +1,5 @@
+import { clientReturnAlerts } from "../_shared/overview.ts";
+import { mergeClients, mergeVerifiedPhone } from "./client-merge.ts";
 import { offerIsVisible } from "../_shared/site-display.ts";
 import { isWithinBusinessHours, brazilNow } from "../_shared/availability.ts";
 import { reminders, dayInBrazil, campaignData, validDay } from "../_shared/vehicle-hub.ts";
@@ -65,18 +67,31 @@ export async function workflowPost(request: Request) {
       await insert("notice:" + who.client.id + ":" + notification.id, "notification_read", who.client.id, null, "lida", { notificationId: notification.id }).run();
       return reply({ ok: true });
     }
+    if (p.action === "message_sent") {
+      if (!who.admin) return noAccess();
+      const rows = await d.prepare("SELECT * FROM workflow_records WHERE kind IN ('order','message_sent')").all<Row>();
+      const bookings = await d.prepare("SELECT * FROM bookings").all<any>();
+      const alert = clientReturnAlerts(rows.results as any, bookings.results, undefined, true).find(a => a.id === text(p.alertId));
+      if (!alert) throw Error("Este lembrete mudou. Atualize a página.");
+      await d.batch([insert(alert.id, "message_sent", alert.clientId, null, "enviada", { lastServiceDay: alert.lastServiceDay, stage: alert.stage, sentAt: now() }), audit(actor, "Mensagem marcada como enviada", alert.id)]);
+      return reply({ ok: true });
+    }
+    if (p.action === "undo_message_sent") {
+      if (!who.admin) return noAccess();
+      await d.batch([d.prepare("DELETE FROM workflow_records WHERE id=? AND kind='message_sent'").bind(text(p.id)), audit(actor, "Marcação de mensagem desfeita", text(p.id))]);
+      return reply({ ok: true });
+    }
+    if (p.action === "merge_clients") {
+      if (!who.admin) return noAccess();
+      await mergeClients(Number(p.sourceId), Number(p.targetId), actor, true);
+      return reply({ ok: true });
+    }
     if (p.action === "link_client") {
       if (!who.admin) return noAccess();
       const target = await d.prepare("SELECT id FROM clients WHERE user_id=?").bind(text(p.accountKey)).first<{ id: number }>();
       const source = await d.prepare("SELECT id,user_id FROM clients WHERE id=?").bind(Number(p.clientId)).first<{ id: number; user_id: string | null }>();
       if (!target || !source || source.user_id || target.id === source.id) throw Error("Selecione um cadastro sem vínculo e uma conta de cliente já cadastrada.");
-      await d.batch([
-        d.prepare("UPDATE bookings SET client_id=? WHERE client_id=?").bind(target.id, source.id),
-        d.prepare("UPDATE plan_subscriptions SET client_id=? WHERE client_id=?").bind(target.id, source.id),
-        d.prepare("UPDATE workflow_records SET client_id=? WHERE client_id=?").bind(target.id, source.id),
-        d.prepare("UPDATE attachments SET client_id=? WHERE client_id=?").bind(target.id, source.id),
-        audit(actor, `Histórico do cliente ${source.id} vinculado à conta ${target.id}`, String(source.id)),
-      ]);
+      await mergeClients(source.id, target.id, actor);
       return reply({ ok: true });
     }
     if (p.action === "delete_quote_template") {
@@ -139,6 +154,7 @@ export async function workflowPost(request: Request) {
     if (p.action === "profile") {
       if (text(p.name).length < 2 || !/^\d{10,13}$/.test(text(p.phone).replace(/\D/g, ""))) throw Error("Informe nome e WhatsApp válidos.");
       await d.prepare("INSERT INTO clients(name,phone,vehicle,plate,notes,user_id,email) VALUES(?,?,'','','',?,?) ON CONFLICT(user_id) DO UPDATE SET name=EXCLUDED.name,phone=EXCLUDED.phone").bind(text(p.name, 80), text(p.phone, 30), actor, who.user.email).run();
+      await mergeVerifiedPhone(actor, who.user.verifiedPhone);
       return reply({ ok: true });
     }
     if (p.action === "complete_quote") {

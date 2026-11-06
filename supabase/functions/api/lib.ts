@@ -1,6 +1,6 @@
 import type { Database } from "./db.ts";
 
-export type AuthUser = { id: string; email: string; name: string; confirmed: boolean };
+export type AuthUser = { id: string; email: string; name: string; confirmed: boolean; verifiedPhone?: string };
 export type StoredFile = { body: Blob; type: string };
 export type Storage = {
   put(bucket: string, key: string, bytes: ArrayBuffer | Uint8Array | string, contentType: string): Promise<void>;
@@ -38,7 +38,7 @@ export async function identity(request: Request) {
   const admin = auth.confirmed && !!email && runtime().ownerEmails.includes(email);
   const client = await db().prepare("SELECT id,name,phone,vehicle,plate,email FROM clients WHERE user_id=?").bind(userId).first<ClientRow>();
   // Contas de cliente usam um e-mail técnico de login; o contato real fica no cadastro.
-  const user = { userId, displayName: auth.name || client?.name || auth.email, email: admin ? auth.email : client?.email || "", fullName: auth.name || null };
+  const user = { userId, verifiedPhone: auth.verifiedPhone, displayName: auth.name || client?.name || auth.email, email: admin ? auth.email : client?.email || "", fullName: auth.name || null };
   return { user, admin, client };
 }
 

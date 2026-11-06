@@ -1,3 +1,4 @@
+import { mergeVerifiedPhone } from "./client-merge.ts";
 import { defaultSiteDisplay, parseSiteDisplay } from "../_shared/site-display.ts";
 import { db, identity, json, now, noAccess, reply, runtime, text } from "./lib.ts";
 import { clientLoginEmail } from "./customer.ts";
@@ -82,6 +83,7 @@ export async function customerAuthPost(request: Request) {
       client = created;
     }
     if (!client) return denied();
+    await mergeVerifiedPhone(userId, auth.verifiedPhone);
     const oldRecords = await d.prepare("SELECT phone FROM clients WHERE id<>?").bind(client.id).all<{ phone: string }>();
     const possibleExistingHistory = mode === "register" && oldRecords.results.some(row => row.phone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") === phone.digits.slice(2));
     return reply({ ok: true, name: client.name, possibleExistingHistory }, 200, { "Cache-Control": "no-store" });

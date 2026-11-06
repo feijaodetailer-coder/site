@@ -32,6 +32,9 @@ export class Database {
   private driver: Driver;
   constructor(driver: Driver) { this.driver = driver; }
   prepare(sql: string) { return statement(sql, [], this.driver.query); }
+  async transaction<T>(fn: (database: Database) => Promise<T>): Promise<T> {
+    return this.driver.transaction(query => fn(new Database({ query, transaction: async nested => nested(query) })));
+  }
   /** Executa todas as instruções em uma única transação; qualquer erro desfaz tudo. */
   async batch(statements: Statement[]) {
     return await this.driver.transaction(async query => {

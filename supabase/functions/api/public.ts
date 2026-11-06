@@ -1,3 +1,4 @@
+import { mergeVerifiedPhone } from "./client-merge.ts";
 import { catalog } from "../_shared/catalog.ts";
 import { availableBookingSlots, isWithinBusinessHours, brazilNow } from "../_shared/availability.ts";
 import { offerIsVisible } from "../_shared/site-display.ts";
@@ -99,6 +100,7 @@ export async function publicPost(request: Request) {
       clientId = inserted?.id;
     }
     if (!clientId) throw new Error("Cliente não salvo");
+    if (user) await mergeVerifiedPhone(user.userId, user.verifiedPhone);
     if (type === "booking") {
       let inserted;
       try { inserted = await reserveBooking(clientId, serviceId, desiredAt, service.booking_duration, service.price, 0, notes || "Agendado pelo catálogo"); }
