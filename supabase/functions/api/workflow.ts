@@ -102,6 +102,30 @@ export async function workflowPost(request: Request) {
       await d.batch([d.prepare("DELETE FROM workflow_records WHERE id=? AND kind='quote_template' AND version=?").bind(template.id, template.version), audit(actor, "Modelo de orçamento excluído", template.id)]);
       return reply({ ok: true });
     }
+    if (p.action === "order_stage") {
+      if (!who.admin) return noAccess();
+      const id = text(p.id), version = Number(p.version), status = text(p.status, 40);
+      const allowed = ["aguardando entrada", "inspeção", "execução", "revisão", "pronto", "entregue"];
+      const order = await record(id);
+      if (!order || order.kind !== "order" || order.version !== version) throw Error("OS alterada. Atualize a página antes de mudar a etapa.");
+      if (!allowed.includes(order.status) || !allowed.includes(status)) throw Error("Use a edição da OS para alterar uma ordem cancelada.");
+      if (order.status === "entregue" && status !== "entregue") throw Error("Uma OS entregue deve ser revisada na edição antes de reabrir.");
+      if (status === order.status) return reply({ ok: true, id });
+      const stamp = now(), data = status === "entregue" ? { ...order.data, completedDate: order.data.completedDate || dayInBrazil() } : order.data;
+      const statements = [
+        d.prepare("UPDATE workflow_records SET status=?,data=?::jsonb,version=version+1,updated_at=? WHERE id=? AND kind='order' AND version=?").bind(status,json(data),stamp,id,version),
+        d.prepare("INSERT INTO audit_log(actor,action,record_id,created_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND version=? AND updated_at=?)").bind(actor,`OS: ${order.status} → ${status}`,id,stamp,id,version+1,stamp),
+      ];
+      if (data.bookingId) statements.push(d.prepare("UPDATE bookings SET status=? WHERE id=? AND EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND version=? AND updated_at=?)").bind(BOOKING_STATUS_BY_ORDER(status),Number(data.bookingId),id,version+1,stamp));
+      if (status === "entregue") {
+        const services = (await d.prepare("SELECT name,description,category FROM services").all<{ name:string; description:string; category:string }>()).results;
+        const vitrification = hasVitrification(data,services);
+        const followup = vitrification ? vitrificationFollowup(id,data) : { title:`Manutenção: ${data.title}`,date:data.maintenanceDate||"",type:"Manutenção",notes:"Confirmar com o cliente o próximo cuidado." };
+        statements.push(d.prepare("INSERT INTO workflow_records(id,kind,client_id,parent_id,status,data,created_at,updated_at) SELECT ?::text,'followup',?::int,?::text,'aberto',?::jsonb,?::text,?::text WHERE EXISTS(SELECT 1 FROM workflow_records WHERE id=? AND version=? AND status='entregue') ON CONFLICT DO NOTHING").bind(vitrification?`vitrification-${id}`:`followup-${id}`,order.client_id,id,json(followup),stamp,stamp,id,version+1));
+      }
+      await d.batch(statements);
+      return reply({ ok:true,id });
+    }
     if (p.action === "delete_order") {
       if (!who.admin) return noAccess();
       const order = await record(text(p.id));
