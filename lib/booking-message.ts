@@ -9,3 +9,12 @@ export function bookingWhatsapp(booking:BookingMessage){
  const phone=whatsappNumber(booking.phone);
  return phone?`https://wa.me/${phone}?text=${encodeURIComponent(bookingMessage(booking))}`:null;
 }
+
+export function bookingReminderWhatsapp(booking:BookingMessage){
+ const phone=whatsappNumber(booking.phone);
+ if(!phone)return null;
+ const date=`${booking.startAt.slice(8,10)}/${booking.startAt.slice(5,7)}/${booking.startAt.slice(0,4)}`;
+ const name=booking.name.trim().split(/\s+/)[0]||'tudo bem';
+ const message=`Olá, ${name}! Passando para lembrar do seu agendamento na Feijão Detailer. 🚗\n\nServiço: ${booking.service}\nData: ${date}, às ${booking.startAt.slice(11,16)}\n\nSe precisar ajustar o horário, responda por aqui. Até breve!`;
+ return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}

@@ -1,3 +1,4 @@
+import {calendarGet,calendarManage} from "./calendar.ts";
 import { backupsGet } from "./backup.ts";
 import { dataGet, dataPatch, dataPost, dataDelete } from "./data.ts";
 import { filesGet, filesPost } from "./files.ts";
@@ -9,6 +10,8 @@ import { workflowGet, workflowPost } from "./workflow.ts";
 
 type Handler = (request: Request) => Promise<Response>;
 const routes: Record<string, Partial<Record<string, Handler>>> = {
+  calendar: { GET: calendarGet },
+  "calendar-manage": { GET: calendarManage },
   data: { GET: dataGet, POST: dataPost, PATCH: dataPatch, DELETE: dataDelete },
   workflow: { GET: workflowGet, POST: workflowPost },
   public: { GET: publicGet, POST: publicPost },
